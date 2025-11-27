@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role } from '../types';
-import { Plus, Search, FileText, MoreHorizontal, Sparkles, History } from 'lucide-react';
+import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -21,6 +22,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     controlNumber: '',
     department: ''
   });
+  
+  // Delete Modal State
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({
+    isOpen: false,
+    doc: null
+  });
 
   const handleSave = (doc: DocumentTrack) => {
     setDocuments(prev => [doc, ...prev]);
@@ -31,6 +38,18 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         controlNumber: doc.referenceNumber,
         department: doc.assignedTo
     });
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, doc: DocumentTrack) => {
+    e.stopPropagation();
+    setDeleteModal({ isOpen: true, doc });
+  };
+
+  const confirmDelete = () => {
+    if (deleteModal.doc) {
+        setDocuments(prev => prev.filter(d => d.id !== deleteModal.doc!.id));
+        setDeleteModal({ isOpen: false, doc: null });
+    }
   };
 
   const statusColor = (status: DocStatus) => {
@@ -140,13 +159,24 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor(doc.status)}`}>
                     {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : doc.status}
                   </span>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc); }}
-                    className="text-gray-400 hover:text-blue-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
-                    title="View History"
-                  >
-                    <History className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc); }}
+                        className="text-gray-400 hover:text-blue-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
+                        title="View History"
+                    >
+                        <History className="w-5 h-5" />
+                    </button>
+                    {currentUser.role === Role.ADMIN && (
+                        <button
+                            onClick={(e) => handleDeleteClick(e, doc)}
+                            className="text-gray-400 hover:text-red-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
+                            title="Delete Document"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -185,6 +215,46 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         onClose={() => setSelectedDoc(null)}
         document={selectedDoc}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && deleteModal.doc && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 relative border border-gray-700">
+                 <button 
+                    onClick={() => setDeleteModal({ isOpen: false, doc: null })}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-12 h-12 bg-red-900/30 rounded-full flex items-center justify-center mb-4 text-red-500">
+                        <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Delete Document?</h3>
+                    <p className="text-sm text-gray-400 mb-6">
+                        Are you sure you want to permanently delete <br/>
+                        <span className="font-semibold text-gray-200">"{deleteModal.doc.title}"</span>? 
+                        <br/>
+                        This action cannot be undone.
+                    </p>
+                    <div className="flex space-x-3 w-full">
+                        <button
+                            onClick={() => setDeleteModal({ isOpen: false, doc: null })}
+                            className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 font-medium"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
