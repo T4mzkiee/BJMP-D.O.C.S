@@ -9,6 +9,12 @@ interface UsersProps {
   currentUser: User;
 }
 
+const BJMP_OFFICES = [
+  'ORD', 'ARDA', 'ARDO', 'RCDS', 'RPRMD', 'RHRDD', 'RLOGS', 'RSAO', 'ROPNS',
+  'RHSD', 'RCOMP', 'RID', 'RIPD', 'LSD', 'DWD', 'RICTMD', 'RPDD', 'RSBAS',
+  'RCRDS', 'FSS', 'ASS', 'CRS', 'CHP'
+];
+
 export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -41,7 +47,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
       setFormData({
         name: '',
         email: '',
-        department: '',
+        department: BJMP_OFFICES[0], // Default to first office
         role: Role.USER,
         isActive: true,
         password: '',
@@ -264,12 +270,15 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
               <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Department</label>
-                    <input
-                    type="text"
-                    value={formData.department}
-                    onChange={e => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white"
-                    />
+                    <select
+                        value={formData.department}
+                        onChange={e => setFormData({ ...formData, department: e.target.value })}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white appearance-none"
+                    >
+                        {BJMP_OFFICES.map(office => (
+                            <option key={office} value={office}>{office}</option>
+                        ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Role</label>

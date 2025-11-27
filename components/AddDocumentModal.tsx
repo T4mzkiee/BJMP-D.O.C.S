@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentTrack, DocStatus, User } from '../types';
 import { Sparkles, Loader2, X } from 'lucide-react';
@@ -12,6 +13,13 @@ interface AddDocumentModalProps {
   documents: DocumentTrack[];
 }
 
+// List of BJMP Offices
+const BJMP_OFFICES = [
+  'ORD', 'ARDA', 'ARDO', 'RCDS', 'RPRMD', 'RHRDD', 'RLOGS', 'RSAO', 'ROPNS',
+  'RHSD', 'RCOMP', 'RID', 'RIPD', 'LSD', 'DWD', 'RICTMD', 'RPDD', 'RSBAS',
+  'RCRDS', 'FSS', 'ASS', 'CRS', 'CHP'
+];
+
 export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onClose, onSave, currentUser, users, documents }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -25,13 +33,10 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     remarks: ''
   });
 
-  // Extract unique departments from users list, excluding current user's department
+  // Use the predefined list of offices, excluding the current user's department
   const departments = useMemo(() => {
-    const depts = users
-      .map(u => u.department)
-      .filter(d => d && d !== currentUser.department); // Filter out own department
-    return Array.from(new Set(depts));
-  }, [users, currentUser]);
+    return BJMP_OFFICES.filter(d => d !== currentUser.department);
+  }, [currentUser]);
 
   // Set default department if not set
   useEffect(() => {
