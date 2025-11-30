@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Settings } from 'lucide-react';
 import { Page, Role, User } from '../types';
 
 interface SidebarProps {
@@ -35,6 +35,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, user, onNavigate,
         <button onClick={() => onNavigate('DOCUMENTS')} className={navItemClass('DOCUMENTS')}>
           <FileText className="w-5 h-5" />
           <span className="font-medium">Documents</span>
+        </button>
+
+        <button onClick={() => onNavigate('ACCOUNT')} className={navItemClass('ACCOUNT')}>
+          <Settings className="w-5 h-5" />
+          <span className="font-medium">Account Settings</span>
         </button>
 
         {user.role === Role.ADMIN && (

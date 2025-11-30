@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UsersPage } from './pages/Users';
 import { DocumentsPage } from './pages/Documents';
+import { AccountPage } from './pages/Account';
 import { Sidebar } from './components/Sidebar';
 
 const App: React.FC = () => {
@@ -55,6 +56,7 @@ const App: React.FC = () => {
               documents={documents} 
               setDocuments={setDocuments} 
               users={users} 
+              setUsers={setUsers}
               currentUser={auth.currentUser!} 
             />
           )}
@@ -77,6 +79,14 @@ const App: React.FC = () => {
               setDocuments={setDocuments} 
               currentUser={auth.currentUser!} 
               users={users}
+            />
+          )}
+
+          {currentPage === 'ACCOUNT' && (
+            <AccountPage 
+              users={users} 
+              setUsers={setUsers} 
+              currentUser={auth.currentUser!} 
             />
           )}
         </div>

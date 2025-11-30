@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { User, Role } from '../types';
-import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera } from 'lucide-react';
+import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera, Lock, Save } from 'lucide-react';
 
 interface UsersProps {
   users: User[];
@@ -27,6 +27,13 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
     user: null,
     type: 'toggle' 
   });
+
+  // Password Change Modal State
+  const [passwordModal, setPasswordModal] = useState<{ isOpen: boolean; user: User | null }>({
+    isOpen: false,
+    user: null
+  });
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
 
   const [formData, setFormData] = useState<Partial<User>>({
     name: '',
@@ -103,6 +110,31 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
     setConfirmModal({ isOpen: false, user: null, type: 'toggle' });
   };
 
+  // Password Logic
+  const openPasswordModal = (user: User) => {
+      setPasswordModal({ isOpen: true, user });
+      setPasswordForm({ newPassword: '', confirmPassword: '' });
+  };
+
+  const handleSavePassword = () => {
+      if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
+          alert("Please fill in both fields.");
+          return;
+      }
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+          alert("Passwords do not match.");
+          return;
+      }
+      
+      if (passwordModal.user) {
+          setUsers(prev => prev.map(u => 
+              u.id === passwordModal.user!.id ? { ...u, password: passwordForm.newPassword } : u
+          ));
+          alert(`Password for ${passwordModal.user.name} updated successfully.`);
+          setPasswordModal({ isOpen: false, user: null });
+      }
+  };
+
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -176,6 +208,13 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-2">
+                       <button 
+                        onClick={() => openPasswordModal(user)}
+                        className="text-gray-400 hover:text-yellow-400 transition-colors p-1 rounded hover:bg-gray-600"
+                        title="Change Password"
+                      >
+                        <Lock className="w-4 h-4" />
+                      </button>
                       <button 
                         onClick={() => initiateToggle(user)} 
                         disabled={user.id === currentUser.id}
@@ -254,19 +293,21 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1 flex items-center">
-                    <Key className="w-3 h-3 mr-1 text-gray-500" />
-                    Password
-                </label>
-                <input
-                  type="text"
-                  value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono text-sm text-white"
-                  placeholder="Set login password"
-                />
-              </div>
+              {!editingUser && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 flex items-center">
+                        <Key className="w-3 h-3 mr-1 text-gray-500" />
+                        Initial Password
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.password}
+                      onChange={e => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono text-sm text-white"
+                      placeholder="Set login password"
+                    />
+                  </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Department</label>
@@ -351,6 +392,68 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
                             Confirm
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {passwordModal.isOpen && passwordModal.user && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 relative border border-gray-700">
+                 <button 
+                    onClick={() => setPasswordModal({ isOpen: false, user: null })}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+                <div className="flex items-center space-x-3 mb-6">
+                    <div className="bg-yellow-900/30 p-3 rounded-full border border-yellow-800">
+                        <Key className="w-6 h-6 text-yellow-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-white">Change Password</h3>
+                        <p className="text-xs text-gray-400">For user: {passwordModal.user.name}</p>
+                    </div>
+                </div>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">New Password</label>
+                        <input
+                            type="password"
+                            value={passwordForm.newPassword}
+                            onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
+                            placeholder="Enter new password"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Confirm Password</label>
+                        <input
+                            type="password"
+                            value={passwordForm.confirmPassword}
+                            onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
+                            placeholder="Confirm new password"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex space-x-3 w-full mt-6">
+                    <button
+                        onClick={() => setPasswordModal({ isOpen: false, user: null })}
+                        className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 font-medium"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSavePassword}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center"
+                    >
+                        <Save className="w-4 h-4 mr-2" />
+                        Update
+                    </button>
                 </div>
             </div>
         </div>

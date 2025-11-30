@@ -13,10 +13,11 @@ interface DashboardProps {
   documents: DocumentTrack[];
   setDocuments: React.Dispatch<React.SetStateAction<DocumentTrack[]>>;
   users: User[];
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   currentUser: User;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, users, currentUser }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, users, setUsers, currentUser }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
@@ -267,31 +268,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
           <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex flex-col">
             <h3 className="text-lg font-bold text-white mb-4">Classification Breakdown</h3>
-            <div className="h-48 w-full relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={priorityData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {priorityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#EF4444' : index === 1 ? '#F59E0B' : '#10B981'} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-col justify-center space-y-2 mt-4">
-                  <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div> Highly Technical</div>
-                  <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div> Complex</div>
-                  <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Simple</div>
+            <div className="flex-1 flex flex-col">
+                <div className="h-48 w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                    <Pie
+                        data={priorityData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                    >
+                        {priorityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#EF4444' : index === 1 ? '#F59E0B' : '#10B981'} />
+                        ))}
+                    </Pie>
+                    <Tooltip contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
+                    </PieChart>
+                </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col justify-center space-y-2 mt-4">
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div> Highly Technical</div>
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div> Complex</div>
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Simple</div>
+                </div>
             </div>
           </div>
         </div>
@@ -367,7 +370,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                 <p className="text-sm text-gray-400 mt-1 line-clamp-1">{doc.description}</p>
                                 <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2">
                                     {doc.remarks && (
-                                      <p className="text-xs text-gray-500 italic">Note: {doc.remarks}</p>
+                                    <p className="text-xs text-gray-500 italic">Note: {doc.remarks}</p>
                                     )}
                                 </div>
                                 <div className="flex items-center space-x-4 mt-2">
@@ -390,8 +393,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
                         {/* Right Side: Status or Actions */}
                         <div className="flex items-center space-x-2">
-                             {/* Show Actions only for Incoming documents that are Processing */}
-                             {activeTab === 'incoming' && doc.status === DocStatus.PROCESSING && (
+                            {/* Show Actions only for Incoming documents that are Processing */}
+                            {activeTab === 'incoming' && doc.status === DocStatus.PROCESSING && (
                                 <div className="flex space-x-2 mr-2">
                                     <button 
                                         onClick={(e) => initiateForward(e, doc)}
@@ -410,11 +413,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                         <span>Done</span>
                                     </button>
                                 </div>
-                             )}
+                            )}
 
-                             {/* Hide status for Outgoing tab if it is Incoming or Processing, as requested. 
-                                 BUT show if it is COMPLETED. */}
-                             {!(activeTab === 'outgoing' && (doc.status === DocStatus.INCOMING || doc.status === DocStatus.PROCESSING || doc.status === DocStatus.OUTGOING)) && (
+                            {/* Hide status for Outgoing tab if it is Incoming or Processing, as requested. 
+                                BUT show if it is COMPLETED. */}
+                            {!(activeTab === 'outgoing' && (doc.status === DocStatus.INCOMING || doc.status === DocStatus.PROCESSING || doc.status === DocStatus.OUTGOING)) && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
                                     doc.status === DocStatus.COMPLETED ? 'bg-green-900/50 text-green-300 border-green-800' : 
                                     doc.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
@@ -423,7 +426,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                 }`}>
                                     {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : doc.status}
                                 </span>
-                             )}
+                            )}
                         </div>
                     </div>
                 ))
