@@ -127,16 +127,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
     return [...docs].sort((a, b) => {
       // 1. Sort by Communication Type Hierarchy
+      // Handle cases where communicationType might be undefined
       const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
       const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
 
       if (weightA !== weightB) {
-        return weightB - weightA; // Higher weight first
+        return weightB - weightA; // Higher weight first (Desc)
       }
 
       // 2. Sort by Date Created (Newest first)
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
+      
+      // Handle invalid dates safe guard
+      if (isNaN(dateA)) return 1;
+      if (isNaN(dateB)) return -1;
+
       return dateB - dateA;
     });
   };
