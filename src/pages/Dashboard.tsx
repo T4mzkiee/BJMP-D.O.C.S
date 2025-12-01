@@ -77,20 +77,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Simple', value: documents.filter(d => d.priority === 'Simple Transaction').length },
   ];
 
-  // Calculate Documents Created per Department
-  const deptStats = useMemo(() => {
-    return departments.map(dept => {
-        // Count documents where the creator belongs to this department
-        const count = documents.filter(doc => {
-            const creator = users.find(u => u.id === doc.createdBy);
-            return creator?.department === dept.name;
-        }).length;
-        return { name: dept.name, value: count };
-    })
-    .sort((a, b) => b.value - a.value) // Sort descending
-    .slice(0, 10); // Top 10 for display
-  }, [documents, users, departments]);
-
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex items-center justify-between">
       <div>
@@ -416,8 +402,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-700" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 lg:col-span-2">
             <h3 className="text-lg font-bold text-white mb-4">Document Status Distribution</h3>
             <div className="h-64" style={{ minHeight: '250px', width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -436,18 +422,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </div>
           </div>
 
-          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700">
-            <h3 className="text-lg font-bold text-white mb-4">Documents Created by Department</h3>
-            <div className="h-64" style={{ minHeight: '250px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deptStats} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#374151" />
-                  <XAxis type="number" tick={{fontSize: 12, fill: '#9CA3AF'}} stroke="#4B5563" />
-                  <YAxis dataKey="name" type="category" width={60} tick={{fontSize: 10, fill: '#9CA3AF'}} stroke="#4B5563" />
-                  <Tooltip cursor={{fill: '#374151'}} contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} fill="#3B82F6" />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex flex-col">
+            <h3 className="text-lg font-bold text-white mb-4">Classification Breakdown</h3>
+            <div className="flex-1 flex flex-col">
+                <div className="h-48 w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                    <Pie
+                        data={priorityData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                    >
+                        {priorityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#EF4444' : index === 1 ? '#F59E0B' : '#10B981'} />
+                        ))}
+                    </Pie>
+                    <Tooltip contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
+                    </PieChart>
+                </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col justify-center space-y-2 mt-4">
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div> Highly Technical</div>
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div> Complex</div>
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Simple</div>
+                </div>
             </div>
           </div>
         </div>
