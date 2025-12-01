@@ -1,6 +1,4 @@
-
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
 import { INITIAL_USERS } from './constants';
 import { Login } from './pages/Login';
@@ -23,6 +21,9 @@ const App: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentTrack[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Ref to track if we've already warned/logged out to prevent double-firing
+  const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- DATA LOADING & AUTH RESTORATION ---
   useEffect(() => {
@@ -183,7 +184,53 @@ const App: React.FC = () => {
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
     localStorage.removeItem('bjmp_docs_user');
+    // Clear any existing idle timers
+    if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+    }
   };
+
+  // --- IDLE TIMER LOGIC ---
+  useEffect(() => {
+    // Only activate if user is authenticated
+    if (!auth.isAuthenticated) return;
+
+    const IDLE_LIMIT = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    const resetIdleTimer = () => {
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+      }
+
+      logoutTimerRef.current = setTimeout(() => {
+        alert("Session Expired: You have been logged out due to inactivity (5 minutes).");
+        handleLogout();
+      }, IDLE_LIMIT);
+    };
+
+    // Events to detect activity
+    const activityEvents = [
+      'mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'
+    ];
+
+    // Attach listeners
+    activityEvents.forEach(event => {
+      window.addEventListener(event, resetIdleTimer);
+    });
+
+    // Start timer immediately
+    resetIdleTimer();
+
+    // Cleanup listeners on unmount or logout
+    return () => {
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+      }
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetIdleTimer);
+      });
+    };
+  }, [auth.isAuthenticated]);
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
