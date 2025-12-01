@@ -138,12 +138,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           )}
 
           <div className="mb-8">
-            <div className="flex items-center space-x-3 mb-4">
-                <img 
-                    src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Bureau_of_Jail_Management_and_Penology_Region_8_Logo.png" 
-                    alt="BJMP Logo" 
-                    className="w-12 h-12 object-contain"
-                />
+            <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center mb-4 border border-gray-600">
+               <FileText className="text-white w-6 h-6" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">BJMP D.O.C.S</h1>
             <p className="text-gray-400">Please enter your details to sign in.</p>
@@ -199,24 +195,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           </form>
         </div>
 
-        {/* Right Side: Visual with BJMP Logo Background */}
-        <div className="hidden md:flex w-1/2 bg-gray-800 relative overflow-hidden items-center justify-center p-10 text-white border-l border-gray-700">
-          
-          {/* Logo Background with 70% Opacity */}
-          <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none">
-             <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Bureau_of_Jail_Management_and_Penology_Region_8_Logo.png" 
-                alt="BJMP Watermark" 
-                className="w-[80%] h-[80%] object-contain opacity-70"
-             />
+        {/* Right Side: Visual (Abstract Shapes) */}
+        <div className="hidden md:flex w-1/2 bg-gray-800 relative overflow-hidden flex-col justify-between p-10 text-white border-l border-gray-700">
+          <div className="absolute inset-0 bg-gray-800 opacity-90"></div>
+          <div className="absolute inset-0 opacity-20">
+             <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full border-4 border-gray-600"></div>
+             <div className="absolute -left-10 bottom-10 w-32 h-32 rounded-full bg-gray-700"></div>
           </div>
-
-          <div className="absolute inset-0 bg-gray-900/30 z-0"></div>
-
-          <div className="relative z-10 h-full flex flex-col justify-between w-full">
+          
+          <div className="relative z-10 h-full flex flex-col justify-between">
             <div>
               <h2 className="text-3xl font-bold mb-4 drop-shadow-md">Streamline Your Document Workflow</h2>
-              <p className="text-gray-200 leading-relaxed drop-shadow-sm font-medium">
+              <p className="text-gray-300 leading-relaxed drop-shadow-sm font-medium">
                 A simple Document Tracking System Developed by JO1 Justin Benedict C Macuto.
               </p>
             </div>

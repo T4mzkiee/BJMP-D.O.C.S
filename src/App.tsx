@@ -123,15 +123,6 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen relative">
-        {/* Fixed Watermark */}
-        <div className="fixed inset-0 ml-64 flex items-center justify-center pointer-events-none z-0">
-            <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Bureau_of_Jail_Management_and_Penology_Region_8_Logo.png" 
-                alt="BJMP Watermark" 
-                className="w-[500px] h-[500px] object-contain opacity-10 grayscale" 
-            />
-        </div>
-
         <div className="relative z-10 max-w-7xl mx-auto">
           {currentPage === 'DASHBOARD' && (
             <Dashboard 
