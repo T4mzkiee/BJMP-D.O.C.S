@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2 } from 'lucide-react';
+import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2, Download } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -113,11 +113,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
   };
 
+  // --- Export Logic ---
+  const handleExportData = () => {
+    const headers = [
+      "Control Number",
+      "Subject",
+      "Description",
+      "Status",
+      "Priority",
+      "Communication Type",
+      "Assigned To",
+      "Date Created",
+      "Last Updated"
+    ];
+
+    const csvRows = [headers.join(',')];
+
+    documents.forEach(doc => {
+      const row = [
+        doc.referenceNumber,
+        `"${doc.title.replace(/"/g, '""')}"`, // Escape quotes
+        `"${doc.description.replace(/"/g, '""').replace(/\n/g, ' ')}"`, // Escape quotes and newlines
+        doc.status,
+        doc.priority,
+        doc.communicationType || 'Regular',
+        doc.assignedTo,
+        new Date(doc.createdAt).toLocaleDateString(),
+        new Date(doc.updatedAt).toLocaleDateString()
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `BJMP_Docs_Export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // --- User View Logic ---
   
   // SORTING FUNCTION
-  // 1. Communication Type: Urgent > Priority > Regular
-  // 2. Date Created: Newest > Oldest
   const sortDocuments = (docs: DocumentTrack[]) => {
     const typeWeight: Record<string, number> = {
       'Urgent': 3,
@@ -126,20 +165,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     };
 
     return [...docs].sort((a, b) => {
-      // 1. Sort by Communication Type Hierarchy
-      // Handle cases where communicationType might be undefined
       const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
       const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
 
       if (weightA !== weightB) {
-        return weightB - weightA; // Higher weight first (Desc)
+        return weightB - weightA;
       }
 
-      // 2. Sort by Date Created (Newest first)
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       
-      // Handle invalid dates safe guard
       if (isNaN(dateA)) return 1;
       if (isNaN(dateB)) return -1;
 
@@ -423,13 +458,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             <h1 className="text-2xl font-bold text-white">System Overview</h1>
             <p className="text-sm text-gray-400">Welcome back, Admin.</p>
           </div>
-          <button 
-            onClick={() => setDeptModalOpen(true)}
-            className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
-          >
-            <Building2 className="w-4 h-4 mr-2 text-blue-400" />
-            Manage Departments
-          </button>
+          <div className="flex space-x-2">
+            <button 
+                onClick={handleExportData}
+                className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+            >
+                <Download className="w-4 h-4 mr-2 text-green-400" />
+                Extract Data
+            </button>
+            <button 
+                onClick={() => setDeptModalOpen(true)}
+                className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+            >
+                <Building2 className="w-4 h-4 mr-2 text-blue-400" />
+                Manage Departments
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
