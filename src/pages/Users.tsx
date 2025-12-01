@@ -1,9 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { User, Role } from '../types';
-import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera, Lock, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera, Lock, Save, Loader2 } from 'lucide-react';
 import { generateSalt, hashPassword, uuid } from '../utils/crypto';
-import { supabase, mapUserToDB } from '../utils/supabase';
+import { supabase, mapUserToDB, uploadFile } from '../utils/supabase';
 
 interface UsersProps {
   users: User[];
@@ -21,7 +20,12 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // File Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
 
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; user: User | null; type: 'toggle' | 'delete' }>({ 
     isOpen: false, 
@@ -46,6 +50,10 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
   });
 
   const handleOpenModal = (user?: User) => {
+    // Reset file state
+    setSelectedFile(null);
+    setPreviewUrl('');
+
     if (user) {
       setEditingUser(user);
       setFormData(user);
@@ -58,7 +66,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
         role: Role.USER,
         isActive: true,
         password: '',
-        avatarUrl: `https://picsum.photos/200/200?random=${Math.floor(Math.random() * 1000)}` 
+        avatarUrl: `https://ui-avatars.com/api/?background=random&name=User` 
       });
     }
     setIsModalOpen(true);
@@ -67,8 +75,10 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const imageUrl = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, avatarUrl: imageUrl }));
+      setSelectedFile(file);
+      // Create local preview
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
     }
   };
 
@@ -83,30 +93,52 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
       return;
     }
 
-    if (editingUser) {
-      const updatedUser = { ...editingUser, ...formData } as User;
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
-      
-      // Sync Supabase
-      await supabase.from('users').update(mapUserToDB(updatedUser)).eq('id', editingUser.id);
+    setIsSaving(true);
 
-    } else {
-      const salt = generateSalt();
-      const hashedPassword = await hashPassword(formData.password!, salt);
+    try {
+        // 1. Handle File Upload (if a file was selected)
+        let finalAvatarUrl = formData.avatarUrl;
+        if (selectedFile) {
+            const uploadedUrl = await uploadFile(selectedFile, 'avatars');
+            if (uploadedUrl) {
+                finalAvatarUrl = uploadedUrl;
+            } else {
+                alert("Failed to upload image. Saving user without new image.");
+            }
+        }
 
-      const newUser: User = {
-        id: uuid(),
-        ...formData,
-        password: hashedPassword,
-        salt: salt
-      } as User;
-      
-      setUsers(prev => [...prev, newUser]);
-      
-      // Sync Supabase
-      await supabase.from('users').insert(mapUserToDB(newUser));
+        // 2. Save User Data
+        if (editingUser) {
+          const updatedUser = { ...editingUser, ...formData, avatarUrl: finalAvatarUrl } as User;
+          setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
+          
+          // Sync Supabase
+          await supabase.from('users').update(mapUserToDB(updatedUser)).eq('id', editingUser.id);
+
+        } else {
+          const salt = generateSalt();
+          const hashedPassword = await hashPassword(formData.password!, salt);
+
+          const newUser: User = {
+            id: uuid(),
+            ...formData,
+            avatarUrl: finalAvatarUrl,
+            password: hashedPassword,
+            salt: salt
+          } as User;
+          
+          setUsers(prev => [...prev, newUser]);
+          
+          // Sync Supabase
+          await supabase.from('users').insert(mapUserToDB(newUser));
+        }
+        setIsModalOpen(false);
+    } catch (error) {
+        console.error("Error saving user:", error);
+        alert("An error occurred while saving.");
+    } finally {
+        setIsSaving(false);
     }
-    setIsModalOpen(false);
   };
 
   const initiateDelete = (user: User) => {
@@ -209,7 +241,11 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
                 <tr key={user.id} className="hover:bg-gray-700 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
-                      <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full bg-gray-600 object-cover" />
+                      <img 
+                        src={user.avatarUrl || `https://ui-avatars.com/api/?background=random&name=${user.name}`} 
+                        alt="" 
+                        className="w-8 h-8 rounded-full bg-gray-600 object-cover" 
+                      />
                       <div>
                         <p className="text-sm font-medium text-gray-100">{user.name}</p>
                         <p className="text-xs text-gray-500">{user.email}</p>
@@ -277,9 +313,9 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
             
             <div className="flex justify-center mb-6">
                 <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-600 group-hover:border-gray-500 transition-colors">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-600 group-hover:border-gray-500 transition-colors bg-gray-900">
                         <img 
-                            src={formData.avatarUrl || `https://ui-avatars.com/api/?name=${formData.name || 'User'}`} 
+                            src={previewUrl || formData.avatarUrl || `https://ui-avatars.com/api/?background=random&name=${formData.name || 'User'}`} 
                             alt="Profile" 
                             className="w-full h-full object-cover"
                         />
@@ -364,14 +400,17 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 text-gray-400 hover:bg-gray-700 rounded-lg"
+                disabled={isSaving}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 border border-gray-600"
+                disabled={isSaving}
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 border border-gray-600 flex items-center"
               >
-                Save Changes
+                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

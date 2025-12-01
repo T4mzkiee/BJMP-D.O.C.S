@@ -7,6 +7,36 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// --- STORAGE HELPER ---
+export const uploadFile = async (file: File, bucket: string = 'avatars'): Promise<string | null> => {
+  try {
+    // Create a unique file name: timestamp_sanitized-name
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // Upload to Supabase
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      return null;
+    }
+
+    // Get Public URL
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Upload failed:', error);
+    return null;
+  }
+};
+
 // --- MAPPERS ---
 // These functions convert between the Application's Data Structure (CamelCase)
 // and the Database's Data Structure (snake_case)
