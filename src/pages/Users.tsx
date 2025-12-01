@@ -228,7 +228,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
+          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Add New User</span>
@@ -336,7 +336,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
             
             <div className="flex justify-center mb-6">
                 <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-600 group-hover:border-gray-500 transition-colors bg-gray-900">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-600 group-hover:border-blue-500 transition-colors bg-gray-900">
                         <img 
                             src={previewUrl || formData.avatarUrl || `https://ui-avatars.com/api/?background=random&name=${formData.name || 'User'}`} 
                             alt="Profile" 
@@ -346,7 +346,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                     <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <Camera className="w-8 h-8 text-white" />
                     </div>
-                    <div className="absolute bottom-0 right-0 bg-gray-600 rounded-full p-1.5 border-2 border-gray-800">
+                    <div className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1.5 border-2 border-gray-800">
                         <Upload className="w-3 h-3 text-white" />
                     </div>
                 </div>
@@ -366,7 +366,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none text-white"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white"
                 />
               </div>
               <div>
@@ -375,7 +375,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                   type="email"
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none text-white"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white"
                 />
               </div>
               {!editingUser && (
@@ -388,7 +388,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                       type="text"
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none font-mono text-sm text-white"
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono text-sm text-white"
                       placeholder="Set login password"
                     />
                   </div>
@@ -399,7 +399,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                     <select
                         value={formData.department}
                         onChange={e => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none text-white appearance-none"
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white appearance-none"
                     >
                         {departments.length > 0 ? (
                             departments.map(dept => (
@@ -415,7 +415,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                     <select
                     value={formData.role}
                     onChange={e => setFormData({ ...formData, role: e.target.value as Role })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none text-white"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white"
                     >
                         <option value={Role.USER}>User</option>
                         <option value={Role.ADMIN}>Admin</option>
@@ -435,7 +435,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 border border-gray-600 flex items-center"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
               >
                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {isSaving ? 'Saving...' : 'Save Changes'}
@@ -479,7 +479,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                         <button
                             onClick={handleConfirmAction}
                             className={`flex-1 px-4 py-2 text-white rounded-lg font-medium ${
-                                confirmModal.type === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-500'
+                                confirmModal.type === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
                             }`}
                         >
                             Confirm
@@ -517,7 +517,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                             type="password"
                             value={passwordForm.newPassword}
                             onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 outline-none text-white"
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
                             placeholder="Enter new password"
                         />
                     </div>
@@ -527,7 +527,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                             type="password"
                             value={passwordForm.confirmPassword}
                             onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 outline-none text-white"
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-white"
                             placeholder="Confirm new password"
                         />
                     </div>
@@ -542,7 +542,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                     </button>
                     <button
                         onClick={handleSavePassword}
-                        className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium flex items-center justify-center border border-gray-600"
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center"
                     >
                         <Save className="w-4 h-4 mr-2" />
                         Update

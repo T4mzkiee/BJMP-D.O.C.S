@@ -138,7 +138,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           )}
 
           <div className="mb-8">
-            <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center mb-4 border border-gray-600">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4 border border-blue-500">
                <FileText className="text-white w-6 h-6" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">BJMP8 D.O.C.S</h1>
@@ -181,7 +181,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             <button
               type="submit"
               disabled={isLocked || isVerifying}
-              className="w-full bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-700"
+              className="w-full bg-blue-600 hover:bg-blue-700 border border-blue-500 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
             >
               {isVerifying ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -196,21 +196,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
         </div>
 
         {/* Right Side: Visual (Abstract Shapes) */}
-        <div className="hidden md:flex w-1/2 bg-gray-800 relative overflow-hidden flex-col justify-between p-10 text-white border-l border-gray-700">
-          <div className="absolute inset-0 bg-gray-800 opacity-90"></div>
+        <div className="hidden md:flex w-1/2 bg-blue-900/20 relative overflow-hidden flex-col justify-between p-10 text-white border-l border-gray-700">
+          <div className="absolute inset-0 bg-blue-900 opacity-90"></div>
           <div className="absolute inset-0 opacity-20">
-             <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full border-4 border-gray-600"></div>
-             <div className="absolute -left-10 bottom-10 w-32 h-32 rounded-full bg-gray-700"></div>
+             <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full border-4 border-blue-400"></div>
+             <div className="absolute -left-10 bottom-10 w-32 h-32 rounded-full bg-blue-500"></div>
           </div>
           
           <div className="relative z-10 h-full flex flex-col justify-between">
             <div>
               <h2 className="text-3xl font-bold mb-4 drop-shadow-md">Streamline Your Document Workflow</h2>
-              <p className="text-gray-300 leading-relaxed drop-shadow-sm font-medium">
+              <p className="text-blue-100 leading-relaxed drop-shadow-sm font-medium">
                 A simple Document Tracking System Developed by JO1 Justin Benedict C Macuto.
               </p>
             </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-300 bg-gray-900/50 p-3 rounded-lg backdrop-blur-sm border border-gray-600 w-fit">
+            <div className="flex items-center space-x-2 text-sm text-blue-200 bg-blue-900/50 p-3 rounded-lg backdrop-blur-sm border border-blue-700 w-fit">
               <ShieldCheck className="w-5 h-5 text-blue-400" />
               <span>Enterprise Grade Security</span>
             </div>

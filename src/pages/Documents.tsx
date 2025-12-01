@@ -131,7 +131,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         {/* Re-enable New Document button for easier access, styled Grey */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
+          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>New Document</span>

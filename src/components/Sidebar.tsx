@@ -14,14 +14,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, user, onNavigate,
   const navItemClass = (page: Page) =>
     `flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors duration-200 ${
       currentPage === page
-        ? 'bg-gray-700 text-white shadow-md border border-gray-600'
+        ? 'bg-blue-600 text-white shadow-md'
         : 'text-gray-400 hover:bg-gray-800 hover:text-white'
     }`;
 
   return (
     <div className="w-64 bg-gray-900 h-screen border-r border-gray-800 flex flex-col shadow-sm fixed left-0 top-0 z-50">
       <div className="p-6 flex items-center space-x-3 border-b border-gray-800">
-        <div className="bg-gray-700 p-2 rounded-lg border border-gray-600">
+        <div className="bg-blue-600 p-2 rounded-lg">
           <FileText className="w-6 h-6 text-white" />
         </div>
         <span className="text-xl font-bold text-white tracking-tight">BJMP8 D.O.C.S</span>
@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, user, onNavigate,
           <div className="overflow-hidden">
             <p className="text-sm font-semibold text-white truncate">{user.name}</p>
             <p className="text-xs text-gray-400 flex items-center">
-              {user.role === Role.ADMIN && <ShieldCheck className="w-3 h-3 mr-1 text-gray-400" />}
+              {user.role === Role.ADMIN && <ShieldCheck className="w-3 h-3 mr-1 text-blue-400" />}
               {user.role}
             </p>
           </div>

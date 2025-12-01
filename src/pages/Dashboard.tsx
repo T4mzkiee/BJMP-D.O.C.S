@@ -31,7 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     department: ''
   });
   
-  // Modal States for Actions
+  // Modal States
   const [selectedDocForLogs, setSelectedDocForLogs] = useState<DocumentTrack | null>(null);
   const [receiveModal, setReceiveModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
   const [detailModal, setDetailModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
@@ -63,11 +63,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const regularIncomingCount = documents.filter(d => d.status === DocStatus.INCOMING && !isDocCurrentlyReturned(d)).length;
 
   const statusCounts = [
-    { name: 'Incoming', value: regularIncomingCount, color: '#6B7280' },
+    { name: 'Incoming', value: regularIncomingCount, color: '#3B82F6' },
     { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
-    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
+    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#6B7280' },
   ];
 
   const priorityData = [
@@ -433,7 +433,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-gray-600" />
+          <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-blue-600" />
           <StatCard title="Returned" value={statusCounts[1].value} icon={Undo2} color="bg-red-500" />
           <StatCard title="Processing" value={statusCounts[2].value} icon={FileClock} color="bg-yellow-500" />
           <StatCard title="Completed" value={statusCounts[3].value} icon={CheckCircle} color="bg-green-500" />
@@ -633,7 +633,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
+          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>New Document</span>
@@ -647,8 +647,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 onClick={() => setActiveTab('incoming')}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'incoming' 
-                    ? 'border-gray-500 text-gray-200 bg-gray-700/50' 
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                    ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                 }`}
             >
                 <ArrowDownLeft className="w-4 h-4" />
@@ -658,8 +658,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 onClick={() => setActiveTab('outgoing')}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'outgoing' 
-                    ? 'border-gray-500 text-gray-200 bg-gray-700/50' 
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                    ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                 }`}
             >
                 <ArrowUpRight className="w-4 h-4" />
@@ -682,7 +682,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                         className={`p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-gray-700 active:bg-gray-600`}
                     >
                         <div className="flex items-start space-x-4 flex-1">
-                            <div className={`p-3 rounded-lg hidden sm:block ${activeTab === 'incoming' ? 'bg-gray-700 text-gray-300' : 'bg-gray-700/50 text-gray-400'}`}>
+                            <div className={`p-3 rounded-lg hidden sm:block ${activeTab === 'incoming' ? 'bg-blue-900/30 text-blue-400' : 'bg-orange-900/30 text-orange-400'}`}>
                                 <FileText className="w-6 h-6" />
                             </div>
                             <div className="flex-1">
@@ -748,7 +748,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     </button>
                                     <button 
                                         onClick={(e) => initiateForward(e, doc)}
-                                        className="flex items-center space-x-1 px-3 py-1.5 bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600 rounded text-xs font-medium transition-colors"
+                                        className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-900/40 text-indigo-300 hover:bg-indigo-900/60 border border-indigo-800/50 rounded text-xs font-medium transition-colors"
                                         title="Forward to another office"
                                     >
                                         <Send className="w-3 h-3" />
@@ -771,7 +771,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/50 text-red-300 border-red-800' : 
                                     doc.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
                                     doc.status === DocStatus.OUTGOING ? 'bg-orange-900/50 text-orange-300 border-orange-800' : 
-                                    'bg-gray-700 text-gray-300 border-gray-600'
+                                    'bg-blue-900/50 text-blue-300 border-blue-800'
                                 }`}>
                                     {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (doc.status === DocStatus.RETURNED || isReturned ? 'RETURNED' : doc.status)}
                                 </span>
