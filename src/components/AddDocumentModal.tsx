@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentTrack, DocStatus, User, Department } from '../types';
 import { Sparkles, Loader2, X } from 'lucide-react';
@@ -64,21 +63,21 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     
-    // Pattern: "DEPARTMENT YY-MM-"
-    // e.g. "ICT 25-11-" or "ICT 26-01-"
+    // Pattern: "DEPARTMENT YYMM" (no hyphens)
+    // e.g. "ICT 2512"
     // We strictly look for this prefix. 
     // If the month OR year changes, no documents will match this prefix, 
     // causing maxSeries to start at 0, effectively resetting the counter.
-    const prefix = `${dept} ${year}-${month}-`;
+    const prefix = `${dept} ${year}${month}`;
     
-    // Filter documents that start with exactly "DEPARTMENT YY-MM-"
+    // Filter documents that start with exactly "DEPARTMENT YYMM"
     const monthlyDocs = documents.filter(d => d.referenceNumber.startsWith(prefix));
     
     let maxSeries = 0;
     
     monthlyDocs.forEach(d => {
         // Extract the series part (everything after the prefix)
-        // e.g. "ICT 25-11-001" -> "001"
+        // e.g. "ICT 2512001" -> "001"
         const seriesPart = d.referenceNumber.slice(prefix.length);
         const seriesNum = parseInt(seriesPart, 10);
         
@@ -90,7 +89,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     // Increment the series and pad to 3 digits
     const nextSeries = (maxSeries + 1).toString().padStart(3, '0'); // 3 digits: 001, 002...
     
-    // Format: DEPARTMENT YY-MM-SERIES
+    // Format: DEPARTMENT YYMMSERIES (e.g. RICTMD 2512001)
     return `${prefix}${nextSeries}`;
   };
 
