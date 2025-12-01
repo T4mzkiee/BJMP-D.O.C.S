@@ -1,86 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack } from './types';
-import { INITIAL_USERS, INITIAL_DOCUMENTS } from './constants';
+import { INITIAL_USERS } from './constants';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UsersPage } from './pages/Users';
 import { DocumentsPage } from './pages/Documents';
 import { AccountPage } from './pages/Account';
 import { Sidebar } from './components/Sidebar';
-import { generateSalt, hashPassword } from './utils/crypto';
+import { generateSalt, hashPassword, uuid } from './utils/crypto';
+import { supabase, mapUserFromDB, mapDocFromDB, mapUserToDB } from './utils/supabase';
 
 const App: React.FC = () => {
-  // --- STATE INITIALIZATION WITH PERSISTENCE ---
-  
-  // Load Users from LocalStorage or fallback to INITIAL_USERS
-  const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem('bjmp_users_data');
-    return savedUsers ? JSON.parse(savedUsers) : INITIAL_USERS;
+  // State Management
+  const [auth, setAuth] = useState<AuthState>({
+    isAuthenticated: false,
+    currentUser: null
   });
+  const [currentPage, setCurrentPage] = useState<Page>('LOGIN');
+  const [users, setUsers] = useState<User[]>([]);
+  const [documents, setDocuments] = useState<DocumentTrack[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load Documents from LocalStorage or fallback to INITIAL_DOCUMENTS
-  const [documents, setDocuments] = useState<DocumentTrack[]>(() => {
-    const savedDocs = localStorage.getItem('bjmp_documents_data');
-    return savedDocs ? JSON.parse(savedDocs) : INITIAL_DOCUMENTS;
-  });
-
-  const [auth, setAuth] = useState<AuthState>(() => {
-     // Optional: Persist login session (Caution: simplified for demo)
-     const savedSession = localStorage.getItem('bjmp_auth_session');
-     return savedSession ? JSON.parse(savedSession) : { isAuthenticated: false, currentUser: null };
-  });
-
-  const [currentPage, setCurrentPage] = useState<Page>('DASHBOARD');
-  const [isMigrating, setIsMigrating] = useState(true);
-
-  // --- PERSISTENCE EFFECTS ---
-
-  // Save Users whenever they change
+  // --- DATA LOADING & SEEDING ---
   useEffect(() => {
-    localStorage.setItem('bjmp_users_data', JSON.stringify(users));
-  }, [users]);
-
-  // Save Documents whenever they change
-  useEffect(() => {
-    localStorage.setItem('bjmp_documents_data', JSON.stringify(documents));
-  }, [documents]);
-
-  // Save Auth Session whenever it changes
-  useEffect(() => {
-    localStorage.setItem('bjmp_auth_session', JSON.stringify(auth));
-  }, [auth]);
-
-
-  // --- SECURITY MIGRATION ---
-  // On startup, check if users have salts. If not, hash their plain-text passwords.
-  useEffect(() => {
-    const migratePasswords = async () => {
-      let hasChanges = false;
-      const migratedUsers = await Promise.all(users.map(async (user) => {
-        // If user already has a salt, assume they are already hashed
-        if (user.salt) return user;
-
-        // If no salt, generate one and hash the existing plain-text password
-        hasChanges = true;
-        const salt = generateSalt();
-        const hashedPassword = await hashPassword(user.password || '', salt);
-        
-        return {
-          ...user,
-          salt: salt,
-          password: hashedPassword
-        };
-      }));
-
-      if (hasChanges) {
-        setUsers(migratedUsers);
-        console.log("Security Migration: All passwords have been hashed and salted.");
+    const loadData = async () => {
+      setIsLoading(true);
+      
+      // 1. Fetch Users
+      const { data: dbUsers, error: userError } = await supabase.from('users').select('*');
+      
+      if (userError) {
+        console.error("Error loading users:", userError);
       }
-      setIsMigrating(false);
+      
+      let appUsers: User[] = [];
+
+      // Seed Users if empty
+      if (!dbUsers || dbUsers.length === 0) {
+        console.log("Seeding Initial Users...");
+        const seedUsers = await Promise.all(INITIAL_USERS.map(async (u) => {
+          const salt = generateSalt();
+          const hashedPassword = await hashPassword(u.password || 'user123', salt);
+          return {
+            ...u,
+            id: uuid(), // Generate proper UUID
+            salt,
+            password: hashedPassword
+          };
+        }));
+
+        for (const u of seedUsers) {
+          await supabase.from('users').insert(mapUserToDB(u));
+        }
+        appUsers = seedUsers;
+      } else {
+        appUsers = dbUsers.map(mapUserFromDB);
+      }
+      setUsers(appUsers);
+
+      // 2. Fetch Documents & Logs
+      const { data: dbDocs, error: docError } = await supabase
+        .from('documents')
+        .select(`*, logs:document_logs(*)`);
+
+      if (docError) {
+        console.error("Error loading documents:", docError);
+      }
+
+      if (dbDocs) {
+        const appDocs = dbDocs.map((d: any) => mapDocFromDB(d, d.logs || []));
+        setDocuments(appDocs);
+      }
+
+      setIsLoading(false);
     };
 
-    migratePasswords();
-  }, []); // Run once on mount
+    loadData();
+  }, []);
 
   // Handlers
   const handleLogin = (user: User) => {
@@ -91,20 +87,19 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
-    localStorage.removeItem('bjmp_auth_session'); // Clear session on logout
   };
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
   };
 
-  if (isMigrating) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
         <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <h2 className="text-xl font-bold">Securing System...</h2>
-            <p className="text-gray-400">Encrypting database credentials</p>
+            <h2 className="text-xl font-bold">Connecting to BJMP Cloud...</h2>
+            <p className="text-gray-400">Syncing data from secure database</p>
         </div>
       </div>
     );
