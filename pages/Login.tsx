@@ -140,7 +140,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
                <FileText className="text-white w-6 h-6" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">BJMP D.O.C.S</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">BJMP8 D.O.C.S</h1>
             <p className="text-gray-400">Please enter your details to sign in.</p>
           </div>
 
