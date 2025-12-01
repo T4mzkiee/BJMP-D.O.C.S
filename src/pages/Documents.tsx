@@ -165,10 +165,10 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                           {doc.priority}
                       </span>
 
-                      {/* Communication Type Badge */}
+                      {/* Communication Type Badge with Effects */}
                       <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                          doc.communicationType === 'Urgent' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
-                          doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800' : 
+                          doc.communicationType === 'Urgent' ? 'bg-red-900/50 text-red-300 border border-red-800 animate-pulse font-bold shadow-red-900/20 shadow-md' : 
+                          doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
                           'bg-gray-700/50 text-gray-300 border border-gray-600'
                       }`}>
                           {doc.communicationType || 'Regular'}

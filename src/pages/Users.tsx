@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef } from 'react';
 import { User, Role, Department } from '../types';
 import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera, Lock, Save, Loader2 } from 'lucide-react';
