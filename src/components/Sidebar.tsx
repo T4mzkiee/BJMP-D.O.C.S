@@ -24,7 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, user, onNavigate,
         <div className="bg-gray-700 p-2 rounded-lg border border-gray-600">
           <FileText className="w-6 h-6 text-white" />
         </div>
-        <span className="text-xl font-bold text-white tracking-tight">BJMP D.O.C.S</span>
+        <span className="text-xl font-bold text-white tracking-tight">BJMP8 D.O.C.S</span>
       </div>
 
       <nav className="flex-1 p-4 space-y-2 mt-4">
