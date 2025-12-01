@@ -675,6 +675,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     }`}>
                                         {doc.priority}
                                     </span>
+
+                                    {/* Communication Type Badge */}
+                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                        doc.communicationType === 'Urgent' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
+                                        doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800' : 
+                                        'bg-gray-700/50 text-gray-300 border border-gray-600'
+                                    }`}>
+                                        {doc.communicationType || 'Regular'}
+                                    </span>
                                     
                                     {doc.status === DocStatus.COMPLETED && wasReturned && (
                                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
