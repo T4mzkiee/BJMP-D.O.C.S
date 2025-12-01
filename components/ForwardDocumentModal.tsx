@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentTrack, User } from '../types';
 import { X, Send, Building2 } from 'lucide-react';
@@ -11,17 +12,21 @@ interface ForwardDocumentModalProps {
   currentUser: User;
 }
 
+// List of BJMP Offices
+const BJMP_OFFICES = [
+  'ORD', 'ARDA', 'ARDO', 'RCDS', 'RPRMD', 'RHRDD', 'RLOGS', 'RSAO', 'ROPNS',
+  'RHSD', 'RCOMP', 'RID', 'RIPD', 'LSD', 'DWD', 'RICTMD', 'RPDD', 'RSBAS',
+  'RCRDS', 'FSS', 'ASS', 'CRS', 'CHP'
+];
+
 export const ForwardDocumentModal: React.FC<ForwardDocumentModalProps> = ({ isOpen, onClose, onForward, document, users, currentUser }) => {
   const [selectedDept, setSelectedDept] = useState('');
   const [remarks, setRemarks] = useState('');
 
-  // Extract unique departments, excluding the user's own department
+  // Use the full list of offices, excluding the current user's department
   const departments = useMemo(() => {
-    const depts = users
-        .map(u => u.department)
-        .filter(d => d && d !== currentUser.department); // Exclude own department
-    return Array.from(new Set(depts));
-  }, [users, currentUser]);
+    return BJMP_OFFICES.filter(d => d !== currentUser.department);
+  }, [currentUser]);
 
   useEffect(() => {
     if (isOpen && departments.length > 0) {

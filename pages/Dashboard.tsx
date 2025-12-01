@@ -408,10 +408,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         <div className="divide-y divide-gray-700">
             {displayDocs.length > 0 ? (
                 displayDocs.map(doc => {
-                    // Check if the document was returned
-                    // Logic: Last action was a return AND status is INCOMING
+                    // Check if the document was returned (current state)
                     const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
                     const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
+
+                    // Check if document WAS returned in its history (for completed docs)
+                    const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
 
                     return (
                     <div 
@@ -452,6 +454,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     }`}>
                                         {doc.priority}
                                     </span>
+                                    
+                                    {/* Additional RETURNED badge for completed documents that were returned */}
+                                    {doc.status === DocStatus.COMPLETED && wasReturned && (
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
+                                            RETURNED
+                                        </span>
+                                    )}
+
                                     <span className="text-xs text-gray-500">{new Date(doc.createdAt).toLocaleDateString()}</span>
                                 </div>
                             </div>

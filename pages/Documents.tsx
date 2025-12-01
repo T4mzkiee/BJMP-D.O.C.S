@@ -52,7 +52,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     }
   };
 
-  const statusColor = (status: DocStatus) => {
+  const statusColor = (status: DocStatus, isReturned: boolean) => {
+    if (isReturned) return 'bg-red-900/50 text-red-300 border border-red-800';
     switch (status) {
       case DocStatus.INCOMING: return 'bg-blue-900/50 text-blue-300 border border-blue-800';
       case DocStatus.OUTGOING: return 'bg-orange-900/50 text-orange-300 border border-orange-800';
@@ -124,15 +125,23 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         </div>
         <div className="divide-y divide-gray-700">
           {filteredDocs.length > 0 ? (
-            filteredDocs.map(doc => (
+            filteredDocs.map(doc => {
+              // Check if the document was returned
+              const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
+              const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
+
+              // Check if document WAS returned in its history (for completed docs)
+              const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
+
+              return (
               <div 
                 key={doc.id} 
                 onClick={() => setSelectedDoc(doc)}
                 className="p-4 hover:bg-gray-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group"
               >
                 <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-blue-900/30 rounded-lg hidden sm:block group-hover:bg-blue-900/50 transition-colors">
-                    <FileText className="w-6 h-6 text-blue-400" />
+                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${isReturned ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
+                    <FileText className="w-6 h-6" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
@@ -147,6 +156,11 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                                 AI Summary: {doc.summary}
                             </p>
                         )}
+                        {isReturned && (
+                           <p className="text-xs text-red-400 font-medium mt-1">
+                             Return Reason: {doc.remarks}
+                           </p>
+                        )}
                     </div>
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
@@ -156,12 +170,19 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                       }`}>
                           {doc.priority}
                       </span>
+
+                      {/* Additional RETURNED badge for completed documents that were returned */}
+                      {doc.status === DocStatus.COMPLETED && wasReturned && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
+                              RETURNED
+                          </span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor(doc.status)}`}>
-                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : doc.status}
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor(doc.status, !!isReturned)}`}>
+                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (isReturned ? 'RETURNED' : doc.status)}
                   </span>
                   <div className="flex items-center space-x-2">
                     <button 
@@ -183,7 +204,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                   </div>
                 </div>
               </div>
-            ))
+            )})
           ) : (
               <div className="p-20 text-center">
                   <div className="bg-gray-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
