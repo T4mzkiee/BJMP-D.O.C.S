@@ -2,7 +2,8 @@
 
 export enum Role {
   ADMIN = 'ADMIN',
-  USER = 'USER'
+  USER = 'USER',
+  MESSAGE_CENTER = 'MESSAGE CENTER'
 }
 
 export enum DocStatus {

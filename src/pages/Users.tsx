@@ -251,7 +251,9 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.role === Role.ADMIN ? 'bg-gray-700 text-gray-300 border border-gray-600' : 'bg-gray-800 text-gray-400 border border-gray-700'
+                      user.role === Role.ADMIN ? 'bg-purple-900/50 text-purple-300 border border-purple-800' : 
+                      user.role === Role.MESSAGE_CENTER ? 'bg-orange-900/50 text-orange-300 border border-orange-800' :
+                      'bg-blue-900/50 text-blue-300 border border-blue-800'
                     }`}>
                       {user.role}
                     </span>
@@ -393,6 +395,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                     >
                         <option value={Role.USER}>User</option>
                         <option value={Role.ADMIN}>Admin</option>
+                        <option value={Role.MESSAGE_CENTER}>Message Center</option>
                     </select>
                   </div>
               </div>
