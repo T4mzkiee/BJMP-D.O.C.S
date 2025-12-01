@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
 import { INITIAL_USERS } from './constants';
@@ -9,6 +10,7 @@ import { AccountPage } from './pages/Account';
 import { Sidebar } from './components/Sidebar';
 import { generateSalt, hashPassword, uuid } from './utils/crypto';
 import { supabase, mapUserFromDB, mapDocFromDB, mapUserToDB, mapLogFromDB } from './utils/supabase';
+import { Menu, FileText } from 'lucide-react';
 
 const App: React.FC = () => {
   // State Management
@@ -21,6 +23,10 @@ const App: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentTrack[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Layout State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Ref to track if we've already warned/logged out to prevent double-firing
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,7 +190,6 @@ const App: React.FC = () => {
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
     localStorage.removeItem('bjmp_docs_user');
-    // Clear any existing idle timers
     if (logoutTimerRef.current) {
         clearTimeout(logoutTimerRef.current);
     }
@@ -253,15 +258,42 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
+    <div className="min-h-screen bg-gray-900 flex flex-col md:flex-row">
+      
+      {/* Mobile Header */}
+      <div className="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
+        <div className="flex items-center space-x-2">
+            <div className="bg-blue-600 p-1.5 rounded-lg">
+                <FileText className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-bold text-white tracking-tight">BJMP8 D.O.C.S</span>
+        </div>
+        <button 
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="text-gray-300 hover:text-white focus:outline-none"
+        >
+            <Menu className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Sidebar Navigation */}
       <Sidebar 
         currentPage={currentPage} 
         user={auth.currentUser!} 
         onNavigate={handleNavigate} 
         onLogout={handleLogout}
+        isOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
-      <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen relative">
+      {/* Main Content Area */}
+      <main 
+        className={`flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen transition-all duration-300 ease-in-out
+            ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}
+        `}
+      >
         <div className="relative z-10 max-w-7xl mx-auto">
           {currentPage === 'DASHBOARD' && (
             <Dashboard 
