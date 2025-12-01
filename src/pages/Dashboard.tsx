@@ -114,7 +114,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   };
 
   // --- User View Logic ---
-  // SORTING HELPER
+  
+  // SORTING FUNCTION
+  // 1. Communication Type: Urgent > Priority > Regular
+  // 2. Date Created: Newest > Oldest
   const sortDocuments = (docs: DocumentTrack[]) => {
     const typeWeight: Record<string, number> = {
       'Urgent': 3,
@@ -128,7 +131,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
 
       if (weightA !== weightB) {
-        return weightB - weightA;
+        return weightB - weightA; // Higher weight first
       }
 
       // 2. Sort by Date Created (Newest first)
