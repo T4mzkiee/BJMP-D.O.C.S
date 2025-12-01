@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { DocumentTrack, DocStatus, User, Department } from '../types';
+import { DocumentTrack, DocStatus, User, Department, Role } from '../types';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { analyzeDocument } from '../services/geminiService';
 import { uuid } from '../utils/crypto';
@@ -57,27 +57,30 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     setIsAnalyzing(false);
   };
 
-  const generateControlNumber = (dept: string) => {
+  const generateControlNumber = (dept: string, isMessageCenter: boolean) => {
     const now = new Date();
-    // Get last 2 digits of the year (e.g. 2025 -> 25, 2026 -> 26)
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     
-    // Pattern: "DEPARTMENT YYMM" (no hyphens)
-    // e.g. "ICT 2512"
-    // We strictly look for this prefix. 
-    // If the month OR year changes, no documents will match this prefix, 
-    // causing maxSeries to start at 0, effectively resetting the counter.
-    const prefix = `${dept} ${year}${month}`;
+    let prefix = '';
+
+    if (isMessageCenter) {
+        // Message Center Format: "TO_DEPT-YY-MM-"
+        // Example: RICTMD-25-12-001
+        prefix = `${dept}-${year}-${month}-`;
+    } else {
+        // Standard User Format: "FROM_DEPT YYMM"
+        // Example: RICTMD 2512001
+        prefix = `${dept} ${year}${month}`;
+    }
     
-    // Filter documents that start with exactly "DEPARTMENT YYMM"
+    // Filter documents that start with the prefix
     const monthlyDocs = documents.filter(d => d.referenceNumber.startsWith(prefix));
     
     let maxSeries = 0;
     
     monthlyDocs.forEach(d => {
         // Extract the series part (everything after the prefix)
-        // e.g. "ICT 2512001" -> "001"
         const seriesPart = d.referenceNumber.slice(prefix.length);
         const seriesNum = parseInt(seriesPart, 10);
         
@@ -87,9 +90,9 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     });
 
     // Increment the series and pad to 3 digits
-    const nextSeries = (maxSeries + 1).toString().padStart(3, '0'); // 3 digits: 001, 002...
+    const nextSeries = (maxSeries + 1).toString().padStart(3, '0'); 
     
-    // Format: DEPARTMENT YYMMSERIES (e.g. RICTMD 2512001)
+    // Combine
     return `${prefix}${nextSeries}`;
   };
 
@@ -97,16 +100,24 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     // RECIPIENT Department
     const recipientDept = newDoc.assignedTo || availableDepartments[0] || 'General';
     
-    // ORIGIN Department (For Control Number)
+    // ORIGIN Department (For Control Number context)
     const originDept = currentUser.department || 'General';
 
-    // Generate Control Number based on ORIGIN
-    const controlNum = generateControlNumber(originDept);
+    let controlNum = '';
+
+    // LOGIC SWITCH:
+    // If Message Center: Use Recipient Dept + Hyphenated Format
+    // If Regular User: Use Origin Dept + Compact Format
+    if (currentUser.role === Role.MESSAGE_CENTER) {
+        controlNum = generateControlNumber(recipientDept, true);
+    } else {
+        controlNum = generateControlNumber(originDept, false);
+    }
     
     const timestamp = new Date().toISOString();
 
     const doc: DocumentTrack = {
-      id: uuid(), // Generate proper UUID
+      id: uuid(), 
       createdBy: currentUser.id,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -120,17 +131,17 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
       remarks: newDoc.remarks,
       logs: [
           {
-              id: uuid(), // Generate proper UUID
+              id: uuid(),
               date: timestamp,
               action: 'Document Created',
               department: currentUser.department,
               userName: currentUser.name,
-              status: DocStatus.OUTGOING, // Initially Outgoing for the creator
+              status: DocStatus.OUTGOING,
               remarks: 'Initial document creation'
           },
           {
-              id: uuid(), // Generate proper UUID
-              date: new Date(Date.now() + 1000).toISOString(), // Add slight delay for ordering
+              id: uuid(),
+              date: new Date(Date.now() + 1000).toISOString(),
               action: `Forwarded to ${recipientDept}`,
               department: currentUser.department,
               userName: currentUser.name,

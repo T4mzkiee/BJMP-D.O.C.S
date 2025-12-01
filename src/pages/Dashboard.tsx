@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
@@ -583,12 +582,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     );
   }
 
-  // USER DASHBOARD (Unchanged but ensuring props passed correctly)
+  // USER & MESSAGE CENTER DASHBOARD
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-           <h1 className="text-2xl font-bold text-white">My Workspace</h1>
+           <h1 className="text-2xl font-bold text-white">
+             {currentUser.role === Role.MESSAGE_CENTER ? 'Message Center Dispatch' : 'My Workspace'}
+           </h1>
            <p className="text-sm text-gray-400">Manage your incoming and outgoing documents.</p>
         </div>
         <button
