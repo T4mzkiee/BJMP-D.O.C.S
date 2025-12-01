@@ -20,7 +20,8 @@ export interface User {
   role: Role;
   isActive: boolean;
   department: string;
-  password?: string; // Added password field
+  password?: string; // Hashed password
+  salt?: string; // Unique salt per user
   avatarUrl?: string;
 }
 

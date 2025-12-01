@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { ShieldCheck, ArrowRight, FileText, Lock, AlertCircle } from 'lucide-react';
+import { ShieldCheck, ArrowRight, FileText, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { verifyPassword } from '../utils/crypto';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -11,6 +12,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   
   // Security State
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -67,19 +69,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     return () => clearInterval(interval);
   }, [lockoutUntil]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (lockoutUntil) return;
+    setIsVerifying(true);
 
-    // Find user matching email, password, and active status
-    const user = users.find(u => 
-      u.email === email && 
-      u.password === password && 
-      u.isActive
-    );
+    // Find user by email first
+    const user = users.find(u => u.email === email && u.isActive);
     
-    if (user) {
+    let isValid = false;
+
+    if (user && user.password && user.salt) {
+        // Securely verify password
+        isValid = await verifyPassword(password, user.password, user.salt);
+    }
+
+    if (isValid && user) {
       // Success: Reset security counters
       setFailedAttempts(0);
       setLockoutUntil(null);
@@ -102,6 +108,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
         setError(`Invalid email or password. ${3 - newAttempts} attempt(s) remaining.`);
       }
     }
+    setIsVerifying(false);
   };
 
   const isLocked = !!lockoutUntil;
@@ -147,7 +154,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-white placeholder-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="admin@doctrack.com"
                 required
-                disabled={isLocked}
+                disabled={isLocked || isVerifying}
               />
             </div>
             <div>
@@ -159,7 +166,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-white placeholder-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="••••••••"
                 required
-                disabled={isLocked}
+                disabled={isLocked || isVerifying}
               />
             </div>
 
@@ -172,11 +179,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
             <button
               type="submit"
-              disabled={isLocked}
+              disabled={isLocked || isVerifying}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
             >
-              <span>Sign In</span>
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              {isVerifying ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </>
+              )}
             </button>
           </form>
         </div>

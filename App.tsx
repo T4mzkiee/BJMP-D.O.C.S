@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack } from './types';
 import { INITIAL_USERS, INITIAL_DOCUMENTS } from './constants';
 import { Login } from './pages/Login';
@@ -7,6 +7,7 @@ import { UsersPage } from './pages/Users';
 import { DocumentsPage } from './pages/Documents';
 import { AccountPage } from './pages/Account';
 import { Sidebar } from './components/Sidebar';
+import { generateSalt, hashPassword } from './utils/crypto';
 
 const App: React.FC = () => {
   // State Management (Simulating Backend)
@@ -17,6 +18,38 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('LOGIN');
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [documents, setDocuments] = useState<DocumentTrack[]>(INITIAL_DOCUMENTS);
+  const [isMigrating, setIsMigrating] = useState(true);
+
+  // --- SECURITY MIGRATION ---
+  // On startup, check if users have salts. If not, hash their plain-text passwords.
+  useEffect(() => {
+    const migratePasswords = async () => {
+      let hasChanges = false;
+      const migratedUsers = await Promise.all(users.map(async (user) => {
+        // If user already has a salt, assume they are already hashed
+        if (user.salt) return user;
+
+        // If no salt, generate one and hash the existing plain-text password
+        hasChanges = true;
+        const salt = generateSalt();
+        const hashedPassword = await hashPassword(user.password || '', salt);
+        
+        return {
+          ...user,
+          salt: salt,
+          password: hashedPassword
+        };
+      }));
+
+      if (hasChanges) {
+        setUsers(migratedUsers);
+        console.log("Security Migration: All passwords have been hashed and salted.");
+      }
+      setIsMigrating(false);
+    };
+
+    migratePasswords();
+  }, []); // Run once on mount (conceptually)
 
   // Handlers
   const handleLogin = (user: User) => {
@@ -32,6 +65,18 @@ const App: React.FC = () => {
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
   };
+
+  if (isMigrating) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h2 className="text-xl font-bold">Securing System...</h2>
+            <p className="text-gray-400">Encrypting database credentials</p>
+        </div>
+      </div>
+    );
+  }
 
   // Render Logic
   if (!auth.isAuthenticated || currentPage === 'LOGIN') {

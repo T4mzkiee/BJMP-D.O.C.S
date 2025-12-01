@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { User as UserIcon, Key, Save } from 'lucide-react';
+import { generateSalt, hashPassword, verifyPassword } from '../utils/crypto';
 
 interface AccountProps {
   users: User[];
@@ -15,10 +16,13 @@ export const AccountPage: React.FC<AccountProps> = ({ users, setUsers, currentUs
     confirmPassword: ''
   });
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     // 1. Get the latest user object to ensure we check the current password correctly
     const freshUser = users.find(u => u.id === currentUser.id);
-    if (!freshUser) return;
+    if (!freshUser || !freshUser.password || !freshUser.salt) {
+        alert("Error retrieving user security details.");
+        return;
+    }
 
     // 2. Validate inputs
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
@@ -26,7 +30,9 @@ export const AccountPage: React.FC<AccountProps> = ({ users, setUsers, currentUs
         return;
     }
 
-    if (passwordData.currentPassword !== freshUser.password) {
+    // Verify current password securely
+    const isCurrentValid = await verifyPassword(passwordData.currentPassword, freshUser.password, freshUser.salt);
+    if (!isCurrentValid) {
         alert("Incorrect current password.");
         return;
     }
@@ -41,9 +47,12 @@ export const AccountPage: React.FC<AccountProps> = ({ users, setUsers, currentUs
         return;
     }
 
-    // 3. Update User
+    // 3. Update User with new Hash and Salt
+    const newSalt = generateSalt();
+    const newHash = await hashPassword(passwordData.newPassword, newSalt);
+
     setUsers(prev => prev.map(u => 
-        u.id === currentUser.id ? { ...u, password: passwordData.newPassword } : u
+        u.id === currentUser.id ? { ...u, password: newHash, salt: newSalt } : u
     ));
 
     alert("Password updated successfully!");

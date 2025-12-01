@@ -1,7 +1,9 @@
 
+
 import React, { useState, useRef } from 'react';
 import { User, Role } from '../types';
 import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera, Lock, Save } from 'lucide-react';
+import { generateSalt, hashPassword } from '../utils/crypto';
 
 interface UsersProps {
   users: User[];
@@ -72,18 +74,30 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
     }
   };
 
-  const handleSave = () => {
-    if (!formData.name || !formData.email || !formData.password) {
-      alert("Please fill in all required fields (Name, Email, Password)");
+  const handleSave = async () => {
+    // If adding a new user, password is required
+    if (!editingUser && !formData.password) {
+        alert("Password is required for new users.");
+        return;
+    }
+
+    if (!formData.name || !formData.email) {
+      alert("Please fill in required fields (Name, Email)");
       return;
     }
 
     if (editingUser) {
       setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...formData } as User : u));
     } else {
+      // Hash password for new user
+      const salt = generateSalt();
+      const hashedPassword = await hashPassword(formData.password!, salt);
+
       const newUser: User = {
         id: Math.random().toString(36).substr(2, 9),
-        ...formData
+        ...formData,
+        password: hashedPassword,
+        salt: salt
       } as User;
       setUsers(prev => [...prev, newUser]);
     }
@@ -116,7 +130,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
       setPasswordForm({ newPassword: '', confirmPassword: '' });
   };
 
-  const handleSavePassword = () => {
+  const handleSavePassword = async () => {
       if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
           alert("Please fill in both fields.");
           return;
@@ -127,8 +141,12 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
       }
       
       if (passwordModal.user) {
+          // Encrypt new password
+          const salt = generateSalt(); // Rotate salt on password change
+          const hashedPassword = await hashPassword(passwordForm.newPassword, salt);
+
           setUsers(prev => prev.map(u => 
-              u.id === passwordModal.user!.id ? { ...u, password: passwordForm.newPassword } : u
+              u.id === passwordModal.user!.id ? { ...u, password: hashedPassword, salt: salt } : u
           ));
           alert(`Password for ${passwordModal.user.name} updated successfully.`);
           setPasswordModal({ isOpen: false, user: null });
