@@ -69,18 +69,45 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   };
 
   const relevantDocs = useMemo(() => {
+    let filtered = [];
     if (currentUser.role === Role.ADMIN) {
-      return documents;
+      filtered = documents;
+    } else {
+      filtered = documents.filter(doc => {
+        const creator = users.find(u => u.id === doc.createdBy);
+        const isCreatedByMyDept = creator && creator.department === currentUser.department;
+        const isAssigned = doc.assignedTo === currentUser.id || doc.assignedTo === currentUser.department;
+        const hasHistory = doc.logs.some(log => log.userName === currentUser.name);
+
+        return isCreatedByMyDept || isAssigned || hasHistory;
+      });
     }
 
-    return documents.filter(doc => {
-      const creator = users.find(u => u.id === doc.createdBy);
-      const isCreatedByMyDept = creator && creator.department === currentUser.department;
-      const isAssigned = doc.assignedTo === currentUser.id || doc.assignedTo === currentUser.department;
-      const hasHistory = doc.logs.some(log => log.userName === currentUser.name);
+    // --- SORTING LOGIC ---
+    // 1. Communication Type Hierarchy: Urgent > Priority > Regular
+    // 2. Date Created: Newest First
+    const typeWeight = {
+      'Urgent': 3,
+      'Priority': 2,
+      'Regular': 1
+    };
 
-      return isCreatedByMyDept || isAssigned || hasHistory;
+    return filtered.sort((a, b) => {
+      // Get weights (default to 1 if undefined)
+      const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
+      const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
+
+      // Primary Sort: Communication Type (Highest weight first)
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+
+      // Secondary Sort: Date Created (Newest first)
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
     });
+
   }, [documents, currentUser, users]);
 
   const filteredDocs = relevantDocs.filter(d => 
