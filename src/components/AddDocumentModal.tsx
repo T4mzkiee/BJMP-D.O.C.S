@@ -184,7 +184,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
         <h2 className="text-xl font-bold mb-4 text-white">New Document</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Title</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Subject</label>
             <input
             type="text"
             value={newDoc.title}
