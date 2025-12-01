@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, DocumentTrack, DocumentLog, Role, DocStatus } from '../types';
 
@@ -74,8 +75,8 @@ export const mapDocFromDB = (d: any, logs: any[]): DocumentTrack => ({
   priority: d.priority,
   assignedTo: d.assigned_to,
   createdBy: d.created_by,
-  createdAt: d.created_at,
-  updatedAt: d.updated_at,
+  createdAt: d.created_at || new Date().toISOString(),
+  updatedAt: d.updated_at || new Date().toISOString(),
   summary: d.summary,
   remarks: d.remarks,
   logs: logs.map(mapLogFromDB)
@@ -98,7 +99,7 @@ export const mapDocToDB = (d: Partial<DocumentTrack>) => ({
 
 export const mapLogFromDB = (l: any): DocumentLog => ({
   id: l.id,
-  date: l.created_at,
+  date: l.created_at || l.date || new Date().toISOString(),
   action: l.action,
   department: l.department,
   userName: l.user_name,

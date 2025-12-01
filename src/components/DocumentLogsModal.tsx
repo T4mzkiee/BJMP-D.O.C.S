@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { DocumentTrack, DocStatus } from '../types';
 import { X, Calendar, User as UserIcon, Building2, CircleDot, ArrowDown } from 'lucide-react';
@@ -11,11 +12,29 @@ interface DocumentLogsModalProps {
 export const DocumentLogsModal: React.FC<DocumentLogsModalProps> = ({ isOpen, onClose, document }) => {
   if (!isOpen || !document) return null;
 
-  // Sort logs by date (newest first for display, or oldest first for timeline flow)
-  // Let's do oldest first to show the flow "from office to office"
-  const sortedLogs = [...(document.logs || [])].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
+  // Helper for safe date formatting
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'Processing date...';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Processing date...';
+    
+    return date.toLocaleString([], { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  // Sort logs by date (oldest first for timeline flow)
+  const sortedLogs = [...(document.logs || [])].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    if (isNaN(dateA)) return 1; // Push invalid dates to end
+    if (isNaN(dateB)) return -1;
+    return dateA - dateB;
+  });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -55,7 +74,7 @@ export const DocumentLogsModal: React.FC<DocumentLogsModalProps> = ({ isOpen, on
                             </span>
                             <div className="flex items-center text-xs text-gray-400">
                                 <Calendar className="w-3 h-3 mr-1" />
-                                {new Date(log.date).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {formatDate(log.date)}
                             </div>
                         </div>
 
