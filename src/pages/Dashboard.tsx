@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
-import { DocumentTrack, DocStatus, User, Role } from '../types';
+
+import React, { useState, useMemo } from 'react';
+import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert } from 'lucide-react';
+import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2 } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -18,10 +19,11 @@ interface DashboardProps {
   setDocuments: React.Dispatch<React.SetStateAction<DocumentTrack[]>>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  departments: Department[];
   currentUser: User;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, users, setUsers, currentUser }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, users, setUsers, departments, currentUser }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
@@ -42,6 +44,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const [clearConfirmationText, setClearConfirmationText] = useState('');
   const [isClearing, setIsClearing] = useState(false);
 
+  // Department Management States
+  const [deptModalOpen, setDeptModalOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [isAddingDept, setIsAddingDept] = useState(false);
+
   // --- Admin View Logic ---
   
   const isDocCurrentlyReturned = (d: DocumentTrack) => {
@@ -57,11 +64,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const regularIncomingCount = documents.filter(d => d.status === DocStatus.INCOMING && !isDocCurrentlyReturned(d)).length;
 
   const statusCounts = [
-    { name: 'Incoming', value: regularIncomingCount, color: '#6B7280' }, // Grey for Incoming (Neutral)
-    { name: 'Returned', value: returnedDocsCount, color: '#EF4444' }, // Keep Red for critical
-    { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' }, // Keep Yellow
-    { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' }, // Keep Green
-    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' }, // Darker Grey
+    { name: 'Incoming', value: regularIncomingCount, color: '#6B7280' },
+    { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
+    { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
+    { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
+    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
   ];
 
   const priorityData = [
@@ -69,6 +76,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Complex', value: documents.filter(d => d.priority === 'Complex Transaction').length },
     { name: 'Simple', value: documents.filter(d => d.priority === 'Simple Transaction').length },
   ];
+
+  // Calculate Documents Created per Department
+  const deptStats = useMemo(() => {
+    return departments.map(dept => {
+        // Count documents where the creator belongs to this department
+        const count = documents.filter(doc => {
+            const creator = users.find(u => u.id === doc.createdBy);
+            return creator?.department === dept.name;
+        }).length;
+        return { name: dept.name, value: count };
+    })
+    .sort((a, b) => b.value - a.value) // Sort descending
+    .slice(0, 10); // Top 10 for display
+  }, [documents, users, departments]);
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex items-center justify-between">
@@ -81,6 +102,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       </div>
     </div>
   );
+
+  // --- Department Logic ---
+  const handleAddDepartment = async () => {
+    if (!newDeptName.trim()) return;
+    setIsAddingDept(true);
+    try {
+        const { error } = await supabase.from('departments').insert({ name: newDeptName.toUpperCase().trim() });
+        if (error) throw error;
+        setNewDeptName('');
+    } catch (error) {
+        console.error('Error adding department:', error);
+        alert('Failed to add department. It might already exist.');
+    } finally {
+        setIsAddingDept(false);
+    }
+  };
+
+  const handleDeleteDepartment = async (id: string) => {
+    if(!confirm("Are you sure you want to delete this department?")) return;
+    try {
+        await supabase.from('departments').delete().eq('id', id);
+    } catch (error) {
+        console.error('Error deleting department:', error);
+    }
+  };
 
   // --- User View Logic ---
   const incomingDocs = documents.filter(d => 
@@ -110,7 +156,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   };
 
   const handleAddDocument = async (doc: DocumentTrack) => {
-    // 1. Optimistic Update
     setDocuments(prev => [doc, ...prev]);
     setIsModalOpen(false);
     setSuccessModal({
@@ -119,13 +164,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         department: doc.assignedTo
     });
 
-    // 2. Sync to Supabase
     try {
-      // Insert Document
       const { error: docError } = await supabase.from('documents').insert(mapDocToDB(doc));
       if (docError) throw docError;
-
-      // Insert Initial Logs
       for (const log of doc.logs) {
         await supabase.from('document_logs').insert(mapLogToDB(log, doc.id));
       }
@@ -175,11 +216,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           logs: [...docToReceive.logs, newLog]
       };
 
-      // Optimistic Update
       setDocuments(prev => prev.map(d => d.id === docToReceive.id ? updatedDoc : d));
       setReceiveModal({ isOpen: false, doc: null });
 
-      // Sync Supabase
       try {
         await supabase.from('documents').update({ status: targetStatus, updated_at: updatedDoc.updatedAt }).eq('id', docToReceive.id);
         await supabase.from('document_logs').insert(mapLogToDB(newLog, docToReceive.id));
@@ -209,7 +248,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
       setDocuments(prev => prev.map(d => d.id === docId ? updatedDoc : d));
 
-      // Sync Supabase
       try {
         await supabase.from('documents').update({ remarks: newRemarks, updated_at: updatedDoc.updatedAt }).eq('id', docId);
         await supabase.from('document_logs').insert(mapLogToDB(newLog, docId));
@@ -250,7 +288,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
       setDocuments(prev => prev.map(d => d.id === docToForward.id ? updatedDoc : d));
 
-      // Sync Supabase
       try {
         await supabase.from('documents').update({ 
             assigned_to: department, 
@@ -289,7 +326,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
     setDocuments(prev => prev.map(d => d.id === docToReturn.id ? updatedDoc : d));
 
-    // Sync Supabase
     try {
         await supabase.from('documents').update({ 
             assigned_to: returnToDept, 
@@ -323,7 +359,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
       setDocuments(prev => prev.map(d => d.id === doc.id ? updatedDoc : d));
 
-      // Sync Supabase
       try {
         await supabase.from('documents').update({ 
             status: DocStatus.COMPLETED,
@@ -339,14 +374,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        // Delete all rows from documents. 
-        // This works because we use 'neq' (not equal) a dummy ID to select all rows.
-        // Cascade delete will automatically remove entries in document_logs.
         const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        
         if (error) throw error;
-
-        // Reset local state
         setDocuments([]);
         setClearDataModal(false);
         setClearConfirmationText('');
@@ -366,8 +395,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">System Overview</h1>
-          <p className="text-sm text-gray-400">Welcome back, Admin.</p>
+          <div>
+            <h1 className="text-2xl font-bold text-white">System Overview</h1>
+            <p className="text-sm text-gray-400">Welcome back, Admin.</p>
+          </div>
+          <button 
+            onClick={() => setDeptModalOpen(true)}
+            className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+          >
+            <Building2 className="w-4 h-4 mr-2 text-blue-400" />
+            Manage Departments
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -378,8 +416,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-700" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700">
             <h3 className="text-lg font-bold text-white mb-4">Document Status Distribution</h3>
             <div className="h-64" style={{ minHeight: '250px', width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -387,10 +425,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                   <XAxis dataKey="name" tick={{fontSize: 12, fill: '#9CA3AF'}} stroke="#4B5563" />
                   <YAxis tick={{fontSize: 12, fill: '#9CA3AF'}} stroke="#4B5563" />
-                  <Tooltip 
-                    cursor={{fill: '#374151'}} 
-                    contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} 
-                  />
+                  <Tooltip cursor={{fill: '#374151'}} contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={50}>
                     {statusCounts.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -401,35 +436,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </div>
           </div>
 
-          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex flex-col">
-            <h3 className="text-lg font-bold text-white mb-4">Classification Breakdown</h3>
-            <div className="flex-1 flex flex-col">
-                <div className="h-48 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                    <Pie
-                        data={priorityData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                    >
-                        {priorityData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index === 0 ? '#EF4444' : index === 1 ? '#F59E0B' : '#10B981'} />
-                        ))}
-                    </Pie>
-                    <Tooltip contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
-                    </PieChart>
-                </ResponsiveContainer>
-                </div>
-                <div className="flex flex-col justify-center space-y-2 mt-4">
-                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div> Highly Technical</div>
-                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div> Complex</div>
-                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Simple</div>
-                </div>
+          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700">
+            <h3 className="text-lg font-bold text-white mb-4">Documents Created by Department</h3>
+            <div className="h-64" style={{ minHeight: '250px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={deptStats} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#374151" />
+                  <XAxis type="number" tick={{fontSize: 12, fill: '#9CA3AF'}} stroke="#4B5563" />
+                  <YAxis dataKey="name" type="category" width={60} tick={{fontSize: 10, fill: '#9CA3AF'}} stroke="#4B5563" />
+                  <Tooltip cursor={{fill: '#374151'}} contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
@@ -454,7 +472,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </button>
         </div>
 
-        {/* Clear Data Confirmation Modal */}
+        {/* Department Management Modal */}
+        {deptModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 relative border border-gray-700 h-[80vh] flex flex-col">
+                    <button 
+                        onClick={() => setDeptModalOpen(false)}
+                        className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                    
+                    <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                        <Building2 className="w-5 h-5 mr-2 text-blue-500" />
+                        Manage Departments
+                    </h2>
+
+                    <div className="flex space-x-2 mb-4">
+                        <input 
+                            type="text" 
+                            placeholder="New Department Name" 
+                            value={newDeptName}
+                            onChange={(e) => setNewDeptName(e.target.value)}
+                            className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        <button 
+                            onClick={handleAddDepartment}
+                            disabled={!newDeptName.trim() || isAddingDept}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                        >
+                            Add
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                        {departments.map(dept => (
+                            <div key={dept.id} className="flex justify-between items-center bg-gray-700/50 p-3 rounded-lg border border-gray-700 group hover:border-gray-600">
+                                <span className="text-gray-200 font-medium text-sm">{dept.name}</span>
+                                <button 
+                                    onClick={() => handleDeleteDepartment(dept.id)}
+                                    className="text-gray-500 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Clear Data Modal */}
         {clearDataModal && (
             <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 animate-fade-in">
                 <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 relative border border-red-800/50">
@@ -512,7 +580,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     );
   }
 
-  // USER DASHBOARD
+  // USER DASHBOARD (Unchanged but ensuring props passed correctly)
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -678,6 +746,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         currentUser={currentUser}
         users={users}
         documents={documents}
+        departments={departments}
       />
       
       <SuccessModal 
@@ -714,6 +783,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         document={forwardModal.doc}
         users={users}
         currentUser={currentUser}
+        departments={departments}
       />
 
       <ReturnDocumentModal

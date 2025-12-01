@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo } from 'react';
-import { DocumentTrack, DocStatus, User, Role } from '../types';
+import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
@@ -12,9 +13,10 @@ interface DocsProps {
   setDocuments: React.Dispatch<React.SetStateAction<DocumentTrack[]>>;
   currentUser: User;
   users: User[];
+  departments: Department[];
 }
 
-export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, currentUser, users }) => {
+export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, currentUser, users, departments }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDoc, setSelectedDoc] = useState<DocumentTrack | null>(null);
@@ -218,6 +220,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         currentUser={currentUser}
         users={users}
         documents={documents}
+        departments={departments}
       />
 
       <SuccessModal 

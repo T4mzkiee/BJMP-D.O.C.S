@@ -14,6 +14,11 @@ export enum DocStatus {
   RETURNED = 'RETURNED'
 }
 
+export interface Department {
+  id: string;
+  name: string;
+}
+
 export interface User {
   id: string;
   name: string;

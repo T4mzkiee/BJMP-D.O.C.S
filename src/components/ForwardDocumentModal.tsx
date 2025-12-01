@@ -1,5 +1,7 @@
+
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { DocumentTrack, User } from '../types';
+import { DocumentTrack, User, Department } from '../types';
 import { X, Send, Building2 } from 'lucide-react';
 
 interface ForwardDocumentModalProps {
@@ -9,30 +11,24 @@ interface ForwardDocumentModalProps {
   document: DocumentTrack | null;
   users: User[];
   currentUser: User;
+  departments: Department[];
 }
 
-// List of BJMP Offices
-const BJMP_OFFICES = [
-  'ORD', 'ARDA', 'ARDO', 'RCDS', 'RPRMD', 'RHRDD', 'RLOGS', 'RSAO', 'ROPNS',
-  'RHSD', 'RCOMP', 'RID', 'RIPD', 'LSD', 'DWD', 'RICTMD', 'RPDD', 'RSBAS',
-  'RCRDS', 'FSS', 'ASS', 'CRS', 'CHP'
-];
-
-export const ForwardDocumentModal: React.FC<ForwardDocumentModalProps> = ({ isOpen, onClose, onForward, document, users, currentUser }) => {
+export const ForwardDocumentModal: React.FC<ForwardDocumentModalProps> = ({ isOpen, onClose, onForward, document, users, currentUser, departments }) => {
   const [selectedDept, setSelectedDept] = useState('');
   const [remarks, setRemarks] = useState('');
 
   // Use the full list of offices, excluding the current user's department
-  const departments = useMemo(() => {
-    return BJMP_OFFICES.filter(d => d !== currentUser.department);
-  }, [currentUser]);
+  const availableDepartments = useMemo(() => {
+    return departments.filter(d => d.name !== currentUser.department).map(d => d.name);
+  }, [currentUser, departments]);
 
   useEffect(() => {
-    if (isOpen && departments.length > 0) {
-        setSelectedDept(departments[0]);
+    if (isOpen && availableDepartments.length > 0) {
+        setSelectedDept(availableDepartments[0]);
         setRemarks('');
     }
-  }, [isOpen, departments]);
+  }, [isOpen, availableDepartments]);
 
   if (!isOpen || !document) return null;
 
@@ -65,7 +61,7 @@ export const ForwardDocumentModal: React.FC<ForwardDocumentModalProps> = ({ isOp
                         onChange={(e) => setSelectedDept(e.target.value)}
                         className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none appearance-none text-white"
                     >
-                        {departments.map(dept => (
+                        {availableDepartments.map(dept => (
                             <option key={dept} value={dept}>{dept}</option>
                         ))}
                     </select>

@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { DocumentTrack, DocStatus, User } from '../types';
+import { DocumentTrack, DocStatus, User, Department } from '../types';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { analyzeDocument } from '../services/geminiService';
 import { uuid } from '../utils/crypto';
@@ -12,16 +13,10 @@ interface AddDocumentModalProps {
   currentUser: User;
   users: User[];
   documents: DocumentTrack[];
+  departments: Department[];
 }
 
-// List of BJMP Offices
-const BJMP_OFFICES = [
-  'ORD', 'ARDA', 'ARDO', 'RCDS', 'RPRMD', 'RHRDD', 'RLOGS', 'RSAO', 'ROPNS',
-  'RHSD', 'RCOMP', 'RID', 'RIPD', 'LSD', 'DWD', 'RICTMD', 'RPDD', 'RSBAS',
-  'RCRDS', 'FSS', 'ASS', 'CRS', 'CHP'
-];
-
-export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onClose, onSave, currentUser, users, documents }) => {
+export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onClose, onSave, currentUser, users, documents, departments }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [newDoc, setNewDoc] = useState<Partial<DocumentTrack>>({
@@ -34,20 +29,20 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     remarks: ''
   });
 
-  // Use the predefined list of offices, excluding the current user's department
-  const departments = useMemo(() => {
-    return BJMP_OFFICES.filter(d => d !== currentUser.department);
-  }, [currentUser]);
+  // Use the passed list of offices, excluding the current user's department
+  const availableDepartments = useMemo(() => {
+    return departments.filter(d => d.name !== currentUser.department).map(d => d.name);
+  }, [currentUser, departments]);
 
   // Set default department if not set
   useEffect(() => {
     if (isOpen) {
         // Reset assignedTo if it's invalid or empty, picking the first valid option
-        if ((!newDoc.assignedTo || !departments.includes(newDoc.assignedTo)) && departments.length > 0) {
-            setNewDoc(prev => ({ ...prev, assignedTo: departments[0] }));
+        if ((!newDoc.assignedTo || !availableDepartments.includes(newDoc.assignedTo)) && availableDepartments.length > 0) {
+            setNewDoc(prev => ({ ...prev, assignedTo: availableDepartments[0] }));
         }
     }
-  }, [isOpen, departments, newDoc.assignedTo]);
+  }, [isOpen, availableDepartments, newDoc.assignedTo]);
 
   if (!isOpen) return null;
 
@@ -101,7 +96,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
 
   const handleSend = () => {
     // RECIPIENT Department
-    const recipientDept = newDoc.assignedTo || departments[0] || 'General';
+    const recipientDept = newDoc.assignedTo || availableDepartments[0] || 'General';
     
     // ORIGIN Department (For Control Number)
     const originDept = currentUser.department || 'General';
@@ -154,7 +149,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
         description: '',
         status: DocStatus.INCOMING,
         priority: 'Simple Transaction',
-        assignedTo: departments[0] || '',
+        assignedTo: availableDepartments[0] || '',
         summary: '',
         remarks: ''
     });
@@ -235,8 +230,8 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
                     onChange={e => setNewDoc({ ...newDoc, assignedTo: e.target.value })}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 outline-none text-white"
                 >
-                    {departments.length > 0 ? (
-                        departments.map(dept => (
+                    {availableDepartments.length > 0 ? (
+                        availableDepartments.map(dept => (
                             <option key={dept} value={dept}>
                                 {dept}              
                             </option>
@@ -270,7 +265,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
           </button>
           <button
             onClick={handleSend}
-            disabled={departments.length === 0}
+            disabled={availableDepartments.length === 0}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send Document

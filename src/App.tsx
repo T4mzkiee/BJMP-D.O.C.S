@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect } from 'react';
-import { AuthState, Page, Role, User, DocumentTrack } from './types';
+import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
 import { INITIAL_USERS } from './constants';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -20,6 +21,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('LOGIN');
   const [users, setUsers] = useState<User[]>([]);
   const [documents, setDocuments] = useState<DocumentTrack[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // --- DATA LOADING & AUTH RESTORATION ---
@@ -41,11 +43,7 @@ const App: React.FC = () => {
       }
 
       // 2. Fetch Users
-      const { data: dbUsers, error: userError } = await supabase.from('users').select('*');
-      
-      if (userError) {
-        console.error("Error loading users:", userError);
-      }
+      const { data: dbUsers } = await supabase.from('users').select('*');
       
       let appUsers: User[] = [];
 
@@ -57,7 +55,7 @@ const App: React.FC = () => {
           const hashedPassword = await hashPassword(u.password || 'user123', salt);
           return {
             ...u,
-            id: uuid(), // Generate proper UUID
+            id: uuid(),
             salt,
             password: hashedPassword
           };
@@ -72,14 +70,16 @@ const App: React.FC = () => {
       }
       setUsers(appUsers);
 
-      // 3. Fetch Documents & Logs
-      const { data: dbDocs, error: docError } = await supabase
+      // 3. Fetch Departments
+      const { data: dbDepts } = await supabase.from('departments').select('*').order('name');
+      if (dbDepts) {
+        setDepartments(dbDepts);
+      }
+
+      // 4. Fetch Documents & Logs
+      const { data: dbDocs } = await supabase
         .from('documents')
         .select(`*, logs:document_logs(*)`);
-
-      if (docError) {
-        console.error("Error loading documents:", docError);
-      }
 
       if (dbDocs) {
         // Sort documents by createdAt descending (newest first)
@@ -97,48 +97,35 @@ const App: React.FC = () => {
 
     // --- REALTIME SUBSCRIPTIONS ---
     
-    // 1. Listen for Document Changes (Insert/Update/Delete)
     const docSubscription = supabase
       .channel('realtime:documents')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, (payload) => {
-        
         if (payload.eventType === 'INSERT') {
-          // New document created by someone else
           const newDoc = mapDocFromDB(payload.new, []);
           setDocuments(prev => {
-            // Prevent duplicates from optimistic updates
             if (prev.some(d => d.id === newDoc.id)) return prev;
             return [newDoc, ...prev];
           });
-        } 
-        else if (payload.eventType === 'UPDATE') {
-          // Document status/details updated
+        } else if (payload.eventType === 'UPDATE') {
           setDocuments(prev => prev.map(doc => {
             if (doc.id === payload.new.id) {
-              // Preserve existing logs from state, update document fields
               return mapDocFromDB(payload.new, doc.logs); 
             }
             return doc;
           }));
-        } 
-        else if (payload.eventType === 'DELETE') {
+        } else if (payload.eventType === 'DELETE') {
           setDocuments(prev => prev.filter(doc => doc.id !== payload.old.id));
         }
       })
       .subscribe();
 
-    // 2. Listen for Log Entries (History/Movement)
-    // This is crucial for showing "Forwarded", "Returned", "Received" updates instantly
     const logSubscription = supabase
       .channel('realtime:logs')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'document_logs' }, (payload) => {
         const newLog = mapLogFromDB(payload.new);
-        
         setDocuments(prev => prev.map(doc => {
           if (doc.id === payload.new.document_id) {
-            // Check if log already exists to prevent duplicates
             if (doc.logs.some(l => l.id === newLog.id)) return doc;
-            
             return {
               ...doc,
               logs: [...doc.logs, newLog]
@@ -149,7 +136,6 @@ const App: React.FC = () => {
       })
       .subscribe();
 
-    // 3. Listen for User Changes
     const userSubscription = supabase
       .channel('realtime:users')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
@@ -167,16 +153,26 @@ const App: React.FC = () => {
       })
       .subscribe();
 
-    // Cleanup subscriptions on unmount
+    const deptSubscription = supabase
+      .channel('realtime:departments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+            setDepartments(prev => [...prev, payload.new as Department].sort((a,b) => a.name.localeCompare(b.name)));
+        } else if (payload.eventType === 'DELETE') {
+            setDepartments(prev => prev.filter(d => d.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(docSubscription);
       supabase.removeChannel(logSubscription);
       supabase.removeChannel(userSubscription);
+      supabase.removeChannel(deptSubscription);
     };
 
   }, []);
 
-  // Handlers
   const handleLogin = (user: User) => {
     setAuth({ isAuthenticated: true, currentUser: user });
     setCurrentPage('DASHBOARD');
@@ -205,14 +201,12 @@ const App: React.FC = () => {
     );
   }
 
-  // Render Logic
   if (!auth.isAuthenticated) {
     return <Login onLogin={handleLogin} users={users} />;
   }
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Sidebar Navigation */}
       <Sidebar 
         currentPage={currentPage} 
         user={auth.currentUser!} 
@@ -220,7 +214,6 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      {/* Main Content Area */}
       <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen relative">
         <div className="relative z-10 max-w-7xl mx-auto">
           {currentPage === 'DASHBOARD' && (
@@ -229,14 +222,14 @@ const App: React.FC = () => {
               setDocuments={setDocuments} 
               users={users} 
               setUsers={setUsers}
+              departments={departments}
               currentUser={auth.currentUser!} 
             />
           )}
           
           {currentPage === 'USERS' && (
-             // Role Guard: Only Admin can see this
              auth.currentUser?.role === Role.ADMIN ? (
-                <UsersPage users={users} setUsers={setUsers} currentUser={auth.currentUser} />
+                <UsersPage users={users} setUsers={setUsers} departments={departments} currentUser={auth.currentUser} />
              ) : (
                 <div className="text-center py-20">
                     <h2 className="text-2xl font-bold text-gray-500">Access Denied</h2>
@@ -251,6 +244,7 @@ const App: React.FC = () => {
               setDocuments={setDocuments} 
               currentUser={auth.currentUser!} 
               users={users}
+              departments={departments}
             />
           )}
 

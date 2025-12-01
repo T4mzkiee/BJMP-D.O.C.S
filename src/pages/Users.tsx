@@ -1,5 +1,7 @@
+
+
 import React, { useState, useRef } from 'react';
-import { User, Role } from '../types';
+import { User, Role, Department } from '../types';
 import { Plus, Edit2, Trash2, Ban, CheckCircle, Search, Key, AlertTriangle, X, Upload, Camera, Lock, Save, Loader2 } from 'lucide-react';
 import { generateSalt, hashPassword, uuid } from '../utils/crypto';
 import { supabase, mapUserToDB, uploadFile } from '../utils/supabase';
@@ -8,15 +10,10 @@ interface UsersProps {
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   currentUser: User;
+  departments: Department[];
 }
 
-const BJMP_OFFICES = [
-  'ORD', 'ARDA', 'ARDO', 'RCDS', 'RPRMD', 'RHRDD', 'RLOGS', 'RSAO', 'ROPNS',
-  'RHSD', 'RCOMP', 'RID', 'RIPD', 'LSD', 'DWD', 'RICTMD', 'RPDD', 'RSBAS',
-  'RCRDS', 'FSS', 'ASS', 'CRS', 'CHP'
-];
-
-export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }) => {
+export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, departments }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,7 +59,7 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
       setFormData({
         name: '',
         email: '',
-        department: BJMP_OFFICES[0], 
+        department: departments.length > 0 ? departments[0].name : '', 
         role: Role.USER,
         isActive: true,
         password: '',
@@ -378,9 +375,13 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser }
                         onChange={e => setFormData({ ...formData, department: e.target.value })}
                         className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none text-white appearance-none"
                     >
-                        {BJMP_OFFICES.map(office => (
-                            <option key={office} value={office}>{office}</option>
-                        ))}
+                        {departments.length > 0 ? (
+                            departments.map(dept => (
+                                <option key={dept.id} value={dept.name}>{dept.name}</option>
+                            ))
+                        ) : (
+                            <option value="">No departments</option>
+                        )}
                     </select>
                   </div>
                   <div>

@@ -1,6 +1,6 @@
 
 
-import { User, Role, DocumentTrack, DocStatus } from './types';
+import { User, Role, DocumentTrack } from './types';
 
 export const INITIAL_USERS: User[] = [
   {
