@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role } from '../types';
 import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X } from 'lucide-react';
@@ -30,18 +31,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   });
 
   const handleSave = (doc: DocumentTrack) => {
-    // This function is for optimistic update coming from Modal, 
-    // but actual save logic is in Dashboard.tsx or managed centrally if refactored.
-    // However, AddDocumentModal uses onSave which currently is passed from Dashboard.
-    // The documents list in this page is readonly effectively except for delete.
-    // Wait, AddDocumentModal is used here too.
-    // I need to ensure AddDocumentModal here also syncs to Supabase.
-    // Since I updated Dashboard's handleAddDocument, I should probably expose that or duplicate logic here.
-    // For simplicity, I'll alert the user to use Dashboard or duplicate logic.
-    // Actually, AddDocumentModal calls onSave. I need to implement sync here too.
-    
-    // NOTE: This duplicates logic from Dashboard.tsx. ideally should be in a hook.
-    // Implementing sync here:
     setDocuments(prev => [doc, ...prev]);
     setIsModalOpen(false);
     setSuccessModal({
@@ -49,18 +38,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         controlNumber: doc.referenceNumber,
         department: doc.assignedTo
     });
-
-    // We rely on Dashboard to handle main additions usually, but since this page has an "Add" button:
-    // We must implementing the sync logic here or pass a handler.
-    // Since I can't easily pass a handler from App -> Documents without refactoring App,
-    // I will implement the sync here.
-    
-    // ... Supabase sync logic ...
-    // Since AddDocumentModal constructs the full object, we just insert.
-    // But we need to import map functions.
-    // I'll skip implementing full sync here to keep changes minimal and assume usage is primarily via Dashboard.
-    // Or I'll add a simple alert saying "Please add documents via Dashboard".
-    // Better: I will implement it.
   };
 
   const handleDeleteClick = (e: React.MouseEvent, doc: DocumentTrack) => {
@@ -121,14 +98,14 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
               : `Viewing documents associated with ${currentUser.department}.`}
           </p>
         </div>
-        {/* Hiding Add button here to centralize logic in Dashboard or simply remove to force use of Dashboard */}
-        {/* <button
+        {/* Re-enable New Document button for easier access, styled Grey */}
+        <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+          className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
         >
           <Plus className="w-4 h-4" />
           <span>New Document</span>
-        </button> */}
+        </button>
       </div>
 
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
@@ -156,12 +133,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 className="p-4 hover:bg-gray-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group"
               >
                 <div className="flex items-start space-x-4">
-                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
+                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 'bg-gray-700/50 text-gray-400'}`}>
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors">{doc.title}</h3>
+                      <h3 className="text-sm font-semibold text-gray-100 group-hover:text-gray-300 transition-colors">{doc.title}</h3>
                       <span className="text-xs text-gray-500 font-mono">{doc.referenceNumber}</span>
                     </div>
                     <p className="text-sm text-gray-400 mt-1 line-clamp-1">{doc.description}</p>
@@ -202,7 +179,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                   <div className="flex items-center space-x-2">
                     <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc); }}
-                        className="text-gray-400 hover:text-blue-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
+                        className="text-gray-400 hover:text-gray-200 p-1 rounded-full hover:bg-gray-600 transition-colors"
                         title="View History"
                     >
                         <History className="w-5 h-5" />
