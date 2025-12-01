@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { DocumentTrack } from '../types';
 import { AlertCircle, X, Check } from 'lucide-react';
@@ -11,6 +12,10 @@ interface ReceiveConfirmationModalProps {
 
 export const ReceiveConfirmationModal: React.FC<ReceiveConfirmationModalProps> = ({ isOpen, onClose, onConfirm, document }) => {
   if (!isOpen || !document) return null;
+
+  // Check if it is a returned document
+  const lastLog = document.logs.length > 0 ? document.logs[document.logs.length - 1] : null;
+  const isReturned = lastLog && lastLog.action.includes('Returned');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -32,7 +37,10 @@ export const ReceiveConfirmationModal: React.FC<ReceiveConfirmationModalProps> =
                 Are you sure you want to officially receive <br/>
                 <span className="font-semibold text-gray-200">"{document.title}"</span>?
                 <br/>
-                This will update the status to Processing.
+                {isReturned 
+                    ? <span className="text-yellow-400 mt-2 block font-medium">Note: Since this is a returned document, receiving it will mark the process as DONE (Completed).</span>
+                    : "This will update the status to Processing."
+                }
             </p>
 
             <div className="flex space-x-3 w-full">
@@ -47,7 +55,7 @@ export const ReceiveConfirmationModal: React.FC<ReceiveConfirmationModalProps> =
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center transition-colors"
                 >
                     <Check className="w-4 h-4 mr-2" />
-                    Yes, Receive
+                    {isReturned ? 'Receive & Complete' : 'Yes, Receive'}
                 </button>
             </div>
         </div>

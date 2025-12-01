@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import { DocumentTrack, DocStatus, User, Role } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare } from 'lucide-react';
+import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2 } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
 import { ReceiveConfirmationModal } from '../components/ReceiveConfirmationModal';
 import { DocumentDetailModal } from '../components/DocumentDetailModal';
 import { ForwardDocumentModal } from '../components/ForwardDocumentModal';
+import { ReturnDocumentModal } from '../components/ReturnDocumentModal';
 
 interface DashboardProps {
   documents: DocumentTrack[];
@@ -31,6 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const [receiveModal, setReceiveModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
   const [detailModal, setDetailModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
   const [forwardModal, setForwardModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
+  const [returnModal, setReturnModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
 
   // --- Admin View Logic ---
   const statusCounts = [
@@ -61,8 +64,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   // --- User View Logic ---
   
   // Incoming: Assigned to ME or my DEPARTMENT
+  // We strictly check the department now, ensuring any user in the department sees the doc.
   const incomingDocs = documents.filter(d => 
-    (d.assignedTo === currentUser.id || d.assignedTo === currentUser.department) &&
+    d.assignedTo === currentUser.department &&
     d.status !== DocStatus.COMPLETED // This ensures "DONE" docs are removed from Incoming
   );
 
@@ -119,21 +123,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       const docToReceive = receiveModal.doc;
       if (!docToReceive) return;
 
+      // Check if this document was returned (Last action was "Returned")
+      const lastLog = docToReceive.logs.length > 0 ? docToReceive.logs[docToReceive.logs.length - 1] : null;
+      const isReturnedDoc = lastLog && lastLog.action.includes('Returned');
+
       setDocuments(prev => prev.map(d => {
           if (d.id === docToReceive.id) {
+              // If returned, auto-complete. Else, set to processing.
+              const targetStatus = isReturnedDoc ? DocStatus.COMPLETED : DocStatus.PROCESSING;
+              const actionText = isReturnedDoc ? 'Received (Returned) - Process Ended' : 'Received Document';
+              const remarksText = isReturnedDoc ? 'Document received back from return. Process marked as done.' : 'Document physically received.';
+
               const newLog = {
                   id: Math.random().toString(36).substr(2, 9),
                   date: new Date().toISOString(),
-                  action: 'Received Document',
+                  action: actionText,
                   department: currentUser.department,
                   userName: currentUser.name,
-                  status: DocStatus.PROCESSING,
-                  remarks: 'Document physically received.'
+                  status: targetStatus,
+                  remarks: remarksText
               };
 
               return {
                   ...d,
-                  status: DocStatus.PROCESSING,
+                  status: targetStatus,
                   updatedAt: new Date().toISOString(),
                   logs: [...d.logs, newLog]
               };
@@ -200,6 +213,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           }
           return d;
       }));
+  };
+
+  // --- Return Logic ---
+  const initiateReturn = (e: React.MouseEvent, doc: DocumentTrack) => {
+    e.stopPropagation();
+    setReturnModal({ isOpen: true, doc });
+  };
+
+  const handleReturnDocument = (remarks: string) => {
+    const docToReturn = returnModal.doc;
+    if (!docToReturn) return;
+
+    // Determine return destination:
+    // Ideally, return to the Creator's Department.
+    const creator = users.find(u => u.id === docToReturn.createdBy);
+    const returnToDept = creator ? creator.department : 'Origin';
+
+    setDocuments(prev => prev.map(d => {
+        if (d.id === docToReturn.id) {
+            const newLog = {
+                id: Math.random().toString(36).substr(2, 9),
+                date: new Date().toISOString(),
+                action: `Returned to ${returnToDept}`,
+                department: currentUser.department,
+                userName: currentUser.name,
+                status: DocStatus.INCOMING, 
+                remarks: remarks
+            };
+
+            return {
+                ...d,
+                assignedTo: returnToDept, // Send back to origin
+                status: DocStatus.INCOMING, // Set as Incoming for them
+                remarks: remarks, // IMPORTANT: Update the main remarks to show the return reason
+                updatedAt: new Date().toISOString(),
+                logs: [...d.logs, newLog]
+            };
+        }
+        return d;
+    }));
   };
 
   // --- Done Logic ---
@@ -354,7 +407,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         {/* List Content */}
         <div className="divide-y divide-gray-700">
             {displayDocs.length > 0 ? (
-                displayDocs.map(doc => (
+                displayDocs.map(doc => {
+                    // Check if the document was returned
+                    // Logic: Last action was a return AND status is INCOMING
+                    const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
+                    const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
+
+                    return (
                     <div 
                         key={doc.id} 
                         onClick={() => handleDocClick(doc)}
@@ -375,7 +434,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                 <p className="text-sm text-gray-400 mt-1 line-clamp-1">{doc.description}</p>
                                 <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2">
                                     {doc.remarks && (
-                                    <p className="text-xs text-gray-500 italic">Note: {doc.remarks}</p>
+                                    <p className={`text-xs italic ${isReturned ? 'text-red-400 font-medium' : 'text-gray-500'}`}>
+                                        {isReturned ? 'Return Reason: ' : 'Note: '} {doc.remarks}
+                                    </p>
                                     )}
                                 </div>
                                 <div className="flex items-center space-x-4 mt-2">
@@ -402,6 +463,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                             {activeTab === 'incoming' && doc.status === DocStatus.PROCESSING && (
                                 <div className="flex space-x-2 mr-2">
                                     <button 
+                                        onClick={(e) => initiateReturn(e, doc)}
+                                        className="flex items-center space-x-1 px-3 py-1.5 bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-800/50 rounded text-xs font-medium transition-colors"
+                                        title="Return to originating department"
+                                    >
+                                        <Undo2 className="w-3 h-3" />
+                                        <span>Return</span>
+                                    </button>
+                                    <button 
                                         onClick={(e) => initiateForward(e, doc)}
                                         className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-900/40 text-indigo-300 hover:bg-indigo-900/60 border border-indigo-800/50 rounded text-xs font-medium transition-colors"
                                         title="Forward to another office"
@@ -425,16 +494,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                             {!(activeTab === 'outgoing' && (doc.status === DocStatus.INCOMING || doc.status === DocStatus.PROCESSING || doc.status === DocStatus.OUTGOING)) && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
                                     doc.status === DocStatus.COMPLETED ? 'bg-green-900/50 text-green-300 border-green-800' : 
+                                    isReturned ? 'bg-red-900/50 text-red-300 border-red-800' : // Red badge for returned
                                     doc.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
                                     doc.status === DocStatus.OUTGOING ? 'bg-orange-900/50 text-orange-300 border-orange-800' : 
                                     'bg-blue-900/50 text-blue-300 border-blue-800'
                                 }`}>
-                                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : doc.status}
+                                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (isReturned ? 'RETURNED' : doc.status)}
                                 </span>
                             )}
                         </div>
                     </div>
-                ))
+                )})
             ) : (
                 <div className="py-20 text-center">
                     <div className="bg-gray-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
@@ -490,6 +560,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         document={forwardModal.doc}
         users={users}
         currentUser={currentUser}
+      />
+
+      <ReturnDocumentModal
+        isOpen={returnModal.isOpen}
+        onClose={() => setReturnModal({ isOpen: false, doc: null })}
+        onConfirm={handleReturnDocument}
+        document={returnModal.doc}
       />
     </div>
   );
