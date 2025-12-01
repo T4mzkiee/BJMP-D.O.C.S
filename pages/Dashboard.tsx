@@ -66,16 +66,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     d.status !== DocStatus.COMPLETED // This ensures "DONE" docs are removed from Incoming
   );
 
-  // Outgoing: Created by ME OR Last Forwarded by ME
+  // Outgoing: 
+  // 1. Created by someone in MY DEPARTMENT
+  // 2. OR Forwarded by someone in MY DEPARTMENT
+  // 3. AND Not currently assigned to MY DEPARTMENT (It's with someone else)
   const outgoingDocs = documents.filter(d => {
-    const isCreator = d.createdBy === currentUser.id;
+    const creator = users.find(u => u.id === d.createdBy);
+    const createdByMyDept = creator?.department === currentUser.department;
     
-    // Check if the current user was the last one to forward this document
-    const hasForwarded = d.logs.some(log => 
-        log.userName === currentUser.name && log.action.includes('Forwarded')
+    const forwardedByMyDept = d.logs.some(log => 
+        log.department === currentUser.department && log.action.includes('Forwarded')
     );
 
-    return isCreator || hasForwarded;
+    const currentlyWithMyDept = d.assignedTo === currentUser.department;
+
+    return (createdByMyDept || forwardedByMyDept) && !currentlyWithMyDept;
   });
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;

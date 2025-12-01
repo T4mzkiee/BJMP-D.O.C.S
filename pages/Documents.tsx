@@ -69,8 +69,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     }
 
     return documents.filter(doc => {
-      // 1. Created by the current user
-      const isCreator = doc.createdBy === currentUser.id;
+      // Find the creator of the document
+      const creator = users.find(u => u.id === doc.createdBy);
+
+      // 1. Created by the current user OR by someone in the same department
+      // This ensures all docs created by "HR" are visible to all "HR" users
+      const isCreatedByMyDept = creator && creator.department === currentUser.department;
       
       // 2. Currently assigned to the current user or their department
       const isAssigned = doc.assignedTo === currentUser.id || doc.assignedTo === currentUser.department;
@@ -78,9 +82,9 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
       // 3. User has previously interacted with the document (found in logs)
       const hasHistory = doc.logs.some(log => log.userName === currentUser.name);
 
-      return isCreator || isAssigned || hasHistory;
+      return isCreatedByMyDept || isAssigned || hasHistory;
     });
-  }, [documents, currentUser]);
+  }, [documents, currentUser, users]);
 
   const filteredDocs = relevantDocs.filter(d => 
     d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -95,7 +99,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
           <p className="text-sm text-gray-400">
             {currentUser.role === Role.ADMIN 
               ? "Master list of all tracked files in the system." 
-              : "List of documents associated with your account."}
+              : `Viewing documents associated with ${currentUser.department}.`}
           </p>
         </div>
         <button
