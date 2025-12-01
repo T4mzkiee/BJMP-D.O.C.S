@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DocumentTrack, DocStatus } from '../types';
 import { X, Save, Calendar, User } from 'lucide-react';
@@ -35,10 +36,11 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ isOpen
             <div className="flex items-center space-x-2 mb-1">
                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                     document.status === DocStatus.COMPLETED ? 'bg-green-900/50 text-green-300 border-green-800' :
+                    document.status === DocStatus.RETURNED ? 'bg-red-900/50 text-red-300 border-red-800' :
                     document.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' :
                     'bg-blue-900/50 text-blue-300 border-blue-800'
                 }`}>
-                    {document.status === DocStatus.COMPLETED ? 'DONE PROCESS' : document.status}
+                    {document.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (document.status === DocStatus.RETURNED ? 'RETURNED' : document.status)}
                 </span>
                 <span className="text-xs text-gray-500 font-mono">{document.referenceNumber}</span>
             </div>

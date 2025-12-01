@@ -53,7 +53,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   };
 
   const statusColor = (status: DocStatus, isReturned: boolean) => {
-    if (isReturned) return 'bg-red-900/50 text-red-300 border border-red-800';
+    if (status === DocStatus.RETURNED || isReturned) return 'bg-red-900/50 text-red-300 border border-red-800';
     switch (status) {
       case DocStatus.INCOMING: return 'bg-blue-900/50 text-blue-300 border border-blue-800';
       case DocStatus.OUTGOING: return 'bg-orange-900/50 text-orange-300 border border-orange-800';
@@ -140,7 +140,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 className="p-4 hover:bg-gray-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group"
               >
                 <div className="flex items-start space-x-4">
-                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${isReturned ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
+                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
@@ -156,7 +156,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                                 AI Summary: {doc.summary}
                             </p>
                         )}
-                        {isReturned && (
+                        {(doc.status === DocStatus.RETURNED || isReturned) && (
                            <p className="text-xs text-red-400 font-medium mt-1">
                              Return Reason: {doc.remarks}
                            </p>
@@ -182,7 +182,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor(doc.status, !!isReturned)}`}>
-                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (isReturned ? 'RETURNED' : doc.status)}
+                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (doc.status === DocStatus.RETURNED || isReturned ? 'RETURNED' : doc.status)}
                   </span>
                   <div className="flex items-center space-x-2">
                     <button 

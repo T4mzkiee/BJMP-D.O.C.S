@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { DocumentTrack, DocStatus } from '../types';
 import { X, Calendar, User as UserIcon, Building2, CircleDot, ArrowDown } from 'lucide-react';
@@ -79,11 +80,12 @@ export const DocumentLogsModal: React.FC<DocumentLogsModalProps> = ({ isOpen, on
                         <div className="mt-3">
                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                                 log.status === DocStatus.COMPLETED ? 'bg-green-900/50 text-green-300 border-green-800' :
+                                log.status === DocStatus.RETURNED ? 'bg-red-900/50 text-red-300 border-red-800' :
                                 log.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' :
                                 log.status === DocStatus.OUTGOING ? 'bg-orange-900/50 text-orange-300 border-orange-800' :
                                 'bg-blue-900/50 text-blue-300 border-blue-800'
                             }`}>
-                                {log.status === DocStatus.COMPLETED ? 'DONE PROCESS' : log.status}
+                                {log.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (log.status === DocStatus.RETURNED ? 'RETURNED' : log.status)}
                             </span>
                         </div>
                     </div>

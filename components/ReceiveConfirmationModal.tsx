@@ -38,7 +38,7 @@ export const ReceiveConfirmationModal: React.FC<ReceiveConfirmationModalProps> =
                 <span className="font-semibold text-gray-200">"{document.title}"</span>?
                 <br/>
                 {isReturned 
-                    ? <span className="text-yellow-400 mt-2 block font-medium">Note: Since this is a returned document, receiving it will mark the process as DONE (Completed).</span>
+                    ? <span className="text-red-400 mt-2 block font-medium">Note: Since this is a returned document, receiving it will mark the status as RETURNED.</span>
                     : "This will update the status to Processing."
                 }
             </p>
@@ -55,7 +55,7 @@ export const ReceiveConfirmationModal: React.FC<ReceiveConfirmationModalProps> =
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center transition-colors"
                 >
                     <Check className="w-4 h-4 mr-2" />
-                    {isReturned ? 'Receive & Complete' : 'Yes, Receive'}
+                    {isReturned ? 'Receive (Returned)' : 'Yes, Receive'}
                 </button>
             </div>
         </div>

@@ -10,7 +10,8 @@ export enum DocStatus {
   OUTGOING = 'OUTGOING',
   PROCESSING = 'PROCESSING',
   COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED'
+  ARCHIVED = 'ARCHIVED',
+  RETURNED = 'RETURNED'
 }
 
 export interface User {

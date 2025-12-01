@@ -36,8 +36,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const [returnModal, setReturnModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
 
   // --- Admin View Logic ---
+  
+  // Helper to check if a document is currently in "Returned" state (for filtering Incoming bucket)
+  const isDocCurrentlyReturned = (d: DocumentTrack) => {
+    if (d.status !== DocStatus.INCOMING) return false;
+    const lastLog = d.logs.length > 0 ? d.logs[d.logs.length - 1] : null;
+    return lastLog && lastLog.action.includes('Returned');
+  };
+
+  // Modified: Count ANY document that has ever been returned (History check)
+  // This ensures the count persists on the graph even after the document is completed.
+  const returnedDocsCount = documents.filter(d => 
+    d.logs.some(l => l.action.includes('Returned'))
+  ).length;
+
+  // Regular incoming are those that are INCOMING but NOT currently returned
+  const regularIncomingCount = documents.filter(d => d.status === DocStatus.INCOMING && !isDocCurrentlyReturned(d)).length;
+
   const statusCounts = [
-    { name: 'Incoming', value: documents.filter(d => d.status === DocStatus.INCOMING).length, color: '#3B82F6' },
+    { name: 'Incoming', value: regularIncomingCount, color: '#3B82F6' },
+    { name: 'Returned', value: returnedDocsCount, color: '#EF4444' }, // Red for returned
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
     { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#6B7280' },
@@ -52,7 +70,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex items-center justify-between">
       <div>
-        <p className="text-sm text-gray-400 font-medium">{title}</p>
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{title}</p>
         <p className="text-2xl font-bold text-white mt-1">{value}</p>
       </div>
       <div className={`p-3 rounded-full ${color} bg-opacity-20`}>
@@ -65,9 +83,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   
   // Incoming: Assigned to ME or my DEPARTMENT
   // We strictly check the department now, ensuring any user in the department sees the doc.
+  // Exclude COMPLETED and RETURNED docs from Incoming tab
   const incomingDocs = documents.filter(d => 
     d.assignedTo === currentUser.department &&
-    d.status !== DocStatus.COMPLETED // This ensures "DONE" docs are removed from Incoming
+    d.status !== DocStatus.COMPLETED &&
+    d.status !== DocStatus.RETURNED
   );
 
   // Outgoing: 
@@ -129,10 +149,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
       setDocuments(prev => prev.map(d => {
           if (d.id === docToReceive.id) {
-              // If returned, auto-complete. Else, set to processing.
-              const targetStatus = isReturnedDoc ? DocStatus.COMPLETED : DocStatus.PROCESSING;
-              const actionText = isReturnedDoc ? 'Received (Returned) - Process Ended' : 'Received Document';
-              const remarksText = isReturnedDoc ? 'Document received back from return. Process marked as done.' : 'Document physically received.';
+              // If returned, set status to RETURNED. Else, set to processing.
+              const targetStatus = isReturnedDoc ? DocStatus.RETURNED : DocStatus.PROCESSING;
+              const actionText = isReturnedDoc ? 'Received (Returned)' : 'Received Document';
+              const remarksText = isReturnedDoc ? 'Document received back from return.' : 'Document physically received.';
 
               const newLog = {
                   id: Math.random().toString(36).substr(2, 9),
@@ -294,11 +314,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           <p className="text-sm text-gray-400">Welcome back, Admin.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Incoming Docs" value={statusCounts[0].value} icon={Inbox} color="bg-blue-500" />
-          <StatCard title="In Progress" value={statusCounts[1].value} icon={FileClock} color="bg-yellow-500" />
-          <StatCard title="Completed" value={statusCounts[2].value} icon={CheckCircle} color="bg-green-500" />
-          <StatCard title="Total Users" value={users.length} icon={Archive} color="bg-purple-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-blue-500" />
+          <StatCard title="Returned" value={statusCounts[1].value} icon={Undo2} color="bg-red-500" />
+          <StatCard title="Processing" value={statusCounts[2].value} icon={FileClock} color="bg-yellow-500" />
+          <StatCard title="Completed" value={statusCounts[3].value} icon={CheckCircle} color="bg-green-500" />
+          <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-500" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -500,16 +521,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                             )}
 
                             {/* Hide status for Outgoing tab if it is Incoming or Processing, as requested. 
-                                BUT show if it is COMPLETED. */}
+                                BUT show if it is COMPLETED or RETURNED. */}
                             {!(activeTab === 'outgoing' && (doc.status === DocStatus.INCOMING || doc.status === DocStatus.PROCESSING || doc.status === DocStatus.OUTGOING)) && (
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
                                     doc.status === DocStatus.COMPLETED ? 'bg-green-900/50 text-green-300 border-green-800' : 
-                                    isReturned ? 'bg-red-900/50 text-red-300 border-red-800' : // Red badge for returned
+                                    doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/50 text-red-300 border-red-800' : // Red badge for returned
                                     doc.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
                                     doc.status === DocStatus.OUTGOING ? 'bg-orange-900/50 text-orange-300 border-orange-800' : 
                                     'bg-blue-900/50 text-blue-300 border-blue-800'
                                 }`}>
-                                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (isReturned ? 'RETURNED' : doc.status)}
+                                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (doc.status === DocStatus.RETURNED || isReturned ? 'RETURNED' : doc.status)}
                                 </span>
                             )}
                         </div>
