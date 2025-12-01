@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Settings } from 'lucide-react';
 import { Page, Role, User } from '../types';
@@ -18,11 +19,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, user, onNavigate,
     }`;
 
   return (
-    <div className="w-64 bg-gray-900 h-screen border-r border-gray-800 flex flex-col shadow-sm fixed left-0 top-0">
-      <div className="p-6 flex items-center space-x-2 border-b border-gray-800">
-        <div className="bg-gray-700 p-2 rounded-lg border border-gray-600">
-          <FileText className="w-6 h-6 text-white" />
-        </div>
+    <div className="w-64 bg-gray-900 h-screen border-r border-gray-800 flex flex-col shadow-sm fixed left-0 top-0 z-50">
+      <div className="p-6 flex items-center space-x-3 border-b border-gray-800">
+        <img 
+            src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Bureau_of_Jail_Management_and_Penology_Region_8_Logo.png" 
+            alt="BJMP Logo" 
+            className="w-10 h-10 object-contain"
+        />
         <span className="text-xl font-bold text-white tracking-tight">BJMP D.O.C.S</span>
       </div>
 
