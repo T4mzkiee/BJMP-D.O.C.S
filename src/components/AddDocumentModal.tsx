@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { DocumentTrack, DocStatus, User } from '../types';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { analyzeDocument } from '../services/geminiService';
+import { uuid } from '../utils/crypto';
 
 interface AddDocumentModalProps {
   isOpen: boolean;
@@ -110,7 +112,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     const timestamp = new Date().toISOString();
 
     const doc: DocumentTrack = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: uuid(), // Generate proper UUID
       createdBy: currentUser.id,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -124,7 +126,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
       remarks: newDoc.remarks,
       logs: [
           {
-              id: Math.random().toString(36).substr(2, 9),
+              id: uuid(), // Generate proper UUID
               date: timestamp,
               action: 'Document Created',
               department: currentUser.department,
@@ -133,7 +135,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
               remarks: 'Initial document creation'
           },
           {
-              id: Math.random().toString(36).substr(2, 9),
+              id: uuid(), // Generate proper UUID
               date: new Date(Date.now() + 1000).toISOString(), // Add slight delay for ordering
               action: `Forwarded to ${recipientDept}`,
               department: currentUser.department,
