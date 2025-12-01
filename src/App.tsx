@@ -22,12 +22,26 @@ const App: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentTrack[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- DATA LOADING & SEEDING ---
+  // --- DATA LOADING & AUTH RESTORATION ---
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       
-      // 1. Fetch Users
+      // 1. Restore Session from LocalStorage
+      const storedUser = localStorage.getItem('bjmp_docs_user');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setAuth({ isAuthenticated: true, currentUser: parsedUser });
+          // Ensure we stay on the requested page if possible, otherwise default to Dashboard
+          setCurrentPage('DASHBOARD'); 
+        } catch (e) {
+          console.error("Failed to restore session", e);
+          localStorage.removeItem('bjmp_docs_user');
+        }
+      }
+
+      // 2. Fetch Users
       const { data: dbUsers, error: userError } = await supabase.from('users').select('*');
       
       if (userError) {
@@ -59,7 +73,7 @@ const App: React.FC = () => {
       }
       setUsers(appUsers);
 
-      // 2. Fetch Documents & Logs
+      // 3. Fetch Documents & Logs
       const { data: dbDocs, error: docError } = await supabase
         .from('documents')
         .select(`*, logs:document_logs(*)`);
@@ -83,11 +97,15 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setAuth({ isAuthenticated: true, currentUser: user });
     setCurrentPage('DASHBOARD');
+    // Save session to LocalStorage
+    localStorage.setItem('bjmp_docs_user', JSON.stringify(user));
   };
 
   const handleLogout = () => {
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
+    // Clear session from LocalStorage
+    localStorage.removeItem('bjmp_docs_user');
   };
 
   const handleNavigate = (page: Page) => {
