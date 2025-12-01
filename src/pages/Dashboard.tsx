@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { DocumentTrack, DocStatus, User, Role } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2 } from 'lucide-react';
+import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -36,6 +36,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const [detailModal, setDetailModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
   const [forwardModal, setForwardModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
   const [returnModal, setReturnModal] = useState<{ isOpen: boolean; doc: DocumentTrack | null }>({ isOpen: false, doc: null });
+
+  // Clear Data States
+  const [clearDataModal, setClearDataModal] = useState(false);
+  const [clearConfirmationText, setClearConfirmationText] = useState('');
+  const [isClearing, setIsClearing] = useState(false);
 
   // --- Admin View Logic ---
   
@@ -328,6 +333,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       } catch (err) { console.error(err); }
   };
 
+  const handleClearSystemData = async () => {
+    if (clearConfirmationText !== 'DELETE') {
+        return;
+    }
+    setIsClearing(true);
+    try {
+        // Delete all rows from documents. 
+        // This works because we use 'neq' (not equal) a dummy ID to select all rows.
+        // Cascade delete will automatically remove entries in document_logs.
+        const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        
+        if (error) throw error;
+
+        // Reset local state
+        setDocuments([]);
+        setClearDataModal(false);
+        setClearConfirmationText('');
+        alert("System data has been successfully wiped.");
+    } catch (error) {
+        console.error("Error clearing data:", error);
+        alert("Failed to clear data. Please check console.");
+    } finally {
+        setIsClearing(false);
+    }
+  };
+
   // --- Render ---
 
   // ADMIN DASHBOARD
@@ -402,6 +433,81 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </div>
           </div>
         </div>
+
+        {/* Danger Zone */}
+        <div className="bg-red-900/10 border border-red-900/50 p-6 rounded-xl flex items-center justify-between">
+            <div>
+                <h3 className="text-lg font-bold text-red-500 flex items-center">
+                    <ShieldAlert className="w-5 h-5 mr-2" />
+                    Danger Zone
+                </h3>
+                <p className="text-sm text-red-400 mt-1">
+                    Perform system-wide maintenance.
+                </p>
+            </div>
+            <button 
+                onClick={() => setClearDataModal(true)}
+                className="bg-red-900/30 hover:bg-red-900/50 text-red-400 hover:text-red-300 border border-red-800 px-4 py-2 rounded-lg transition-colors text-sm font-medium flex items-center"
+            >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All System Data
+            </button>
+        </div>
+
+        {/* Clear Data Confirmation Modal */}
+        {clearDataModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 animate-fade-in">
+                <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 relative border border-red-800/50">
+                    <button 
+                        onClick={() => { setClearDataModal(false); setClearConfirmationText(''); }}
+                        className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                    
+                    <div className="flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-700 animate-pulse">
+                            <AlertTriangle className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">Wipe All Data?</h3>
+                        <p className="text-sm text-gray-400 mb-6">
+                            This action is <span className="font-bold text-red-400">IRREVERSIBLE</span>. It will permanently delete:
+                            <br/>• All Documents (Incoming, Processing, Completed)
+                            <br/>• All Transaction Logs
+                            <br/>• All Control Numbers (Reset to 001)
+                        </p>
+                        
+                        <div className="w-full mb-6 text-left">
+                            <label className="block text-xs font-medium text-gray-500 mb-1 uppercase">Type "DELETE" to confirm</label>
+                            <input 
+                                type="text" 
+                                value={clearConfirmationText}
+                                onChange={(e) => setClearConfirmationText(e.target.value)}
+                                className="w-full bg-gray-900 border border-red-900/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 placeholder-gray-600"
+                                placeholder="DELETE"
+                            />
+                        </div>
+
+                        <div className="flex space-x-3 w-full">
+                            <button
+                                onClick={() => { setClearDataModal(false); setClearConfirmationText(''); }}
+                                className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleClearSystemData}
+                                disabled={clearConfirmationText !== 'DELETE' || isClearing}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isClearing ? 'Wiping...' : 'Confirm Wipe'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
       </div>
     );
   }
