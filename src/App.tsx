@@ -9,7 +9,7 @@ import { DocumentsPage } from './pages/Documents';
 import { AccountPage } from './pages/Account';
 import { Sidebar } from './components/Sidebar';
 import { generateSalt, hashPassword, uuid } from './utils/crypto';
-import { supabase, mapUserFromDB, mapDocFromDB, mapUserToDB } from './utils/supabase';
+import { supabase, mapUserFromDB, mapDocFromDB, mapUserToDB, mapLogFromDB } from './utils/supabase';
 
 const App: React.FC = () => {
   // State Management
@@ -33,8 +33,7 @@ const App: React.FC = () => {
         try {
           const parsedUser = JSON.parse(storedUser);
           setAuth({ isAuthenticated: true, currentUser: parsedUser });
-          // Ensure we stay on the requested page if possible, otherwise default to Dashboard
-          setCurrentPage('DASHBOARD'); 
+          setCurrentPage('DASHBOARD');
         } catch (e) {
           console.error("Failed to restore session", e);
           localStorage.removeItem('bjmp_docs_user');
@@ -83,7 +82,11 @@ const App: React.FC = () => {
       }
 
       if (dbDocs) {
-        const appDocs = dbDocs.map((d: any) => mapDocFromDB(d, d.logs || []));
+        // Sort documents by createdAt descending (newest first)
+        const sortedDocs = dbDocs.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        const appDocs = sortedDocs.map((d: any) => mapDocFromDB(d, d.logs || []));
         setDocuments(appDocs);
       }
 
@@ -91,20 +94,98 @@ const App: React.FC = () => {
     };
 
     loadData();
+
+    // --- REALTIME SUBSCRIPTIONS ---
+    
+    // 1. Listen for Document Changes (Insert/Update/Delete)
+    const docSubscription = supabase
+      .channel('realtime:documents')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, (payload) => {
+        
+        if (payload.eventType === 'INSERT') {
+          // New document created by someone else
+          const newDoc = mapDocFromDB(payload.new, []);
+          setDocuments(prev => {
+            // Prevent duplicates from optimistic updates
+            if (prev.some(d => d.id === newDoc.id)) return prev;
+            return [newDoc, ...prev];
+          });
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          // Document status/details updated
+          setDocuments(prev => prev.map(doc => {
+            if (doc.id === payload.new.id) {
+              // Preserve existing logs from state, update document fields
+              return mapDocFromDB(payload.new, doc.logs); 
+            }
+            return doc;
+          }));
+        } 
+        else if (payload.eventType === 'DELETE') {
+          setDocuments(prev => prev.filter(doc => doc.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // 2. Listen for Log Entries (History/Movement)
+    // This is crucial for showing "Forwarded", "Returned", "Received" updates instantly
+    const logSubscription = supabase
+      .channel('realtime:logs')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'document_logs' }, (payload) => {
+        const newLog = mapLogFromDB(payload.new);
+        
+        setDocuments(prev => prev.map(doc => {
+          if (doc.id === payload.new.document_id) {
+            // Check if log already exists to prevent duplicates
+            if (doc.logs.some(l => l.id === newLog.id)) return doc;
+            
+            return {
+              ...doc,
+              logs: [...doc.logs, newLog]
+            };
+          }
+          return doc;
+        }));
+      })
+      .subscribe();
+
+    // 3. Listen for User Changes
+    const userSubscription = supabase
+      .channel('realtime:users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newUser = mapUserFromDB(payload.new);
+          setUsers(prev => {
+             if (prev.some(u => u.id === newUser.id)) return prev;
+             return [...prev, newUser];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          setUsers(prev => prev.map(u => u.id === payload.new.id ? mapUserFromDB(payload.new) : u));
+        } else if (payload.eventType === 'DELETE') {
+          setUsers(prev => prev.filter(u => u.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(docSubscription);
+      supabase.removeChannel(logSubscription);
+      supabase.removeChannel(userSubscription);
+    };
+
   }, []);
 
   // Handlers
   const handleLogin = (user: User) => {
     setAuth({ isAuthenticated: true, currentUser: user });
     setCurrentPage('DASHBOARD');
-    // Save session to LocalStorage
     localStorage.setItem('bjmp_docs_user', JSON.stringify(user));
   };
 
   const handleLogout = () => {
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
-    // Clear session from LocalStorage
     localStorage.removeItem('bjmp_docs_user');
   };
 
