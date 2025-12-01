@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { DocumentTrack, DocStatus, User, Department, Role } from '../types';
+import { DocumentTrack, DocStatus, User, Department, Role, DocCommunication } from '../types';
 import { Sparkles, Loader2, X } from 'lucide-react';
 import { analyzeDocument } from '../services/geminiService';
 import { uuid } from '../utils/crypto';
@@ -23,6 +24,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     description: '',
     status: DocStatus.INCOMING,
     priority: 'Simple Transaction',
+    communicationType: 'Regular',
     assignedTo: '', // Now stores Department Name
     summary: '',
     remarks: ''
@@ -127,6 +129,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
       description: newDoc.description || '',
       status: newDoc.status || DocStatus.INCOMING,
       priority: newDoc.priority || 'Simple Transaction',
+      communicationType: newDoc.communicationType || 'Regular',
       summary: newDoc.summary,
       remarks: newDoc.remarks,
       logs: [
@@ -159,6 +162,7 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
         description: '',
         status: DocStatus.INCOMING,
         priority: 'Simple Transaction',
+        communicationType: 'Regular',
         assignedTo: availableDepartments[0] || '',
         summary: '',
         remarks: ''
@@ -251,7 +255,21 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
                     )}
                 </select>
               </div>
+              
               <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Communication Type</label>
+                <select
+                    value={newDoc.communicationType}
+                    onChange={e => setNewDoc({ ...newDoc, communicationType: e.target.value as DocCommunication })}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 outline-none text-white"
+                >
+                    <option value="Regular">Regular</option>
+                    <option value="Priority">Priority</option>
+                    <option value="Urgent">Urgent</option>
+                </select>
+              </div>
+
+              <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-400 mb-1">Document Classification</label>
                 <select
                     value={newDoc.priority}

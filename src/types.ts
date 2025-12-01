@@ -43,6 +43,7 @@ export interface DocumentLog {
 }
 
 export type DocClassification = 'Simple Transaction' | 'Complex Transaction' | 'Highly Technical Transaction';
+export type DocCommunication = 'Urgent' | 'Priority' | 'Regular';
 
 export interface DocumentTrack {
   id: string;
@@ -51,6 +52,7 @@ export interface DocumentTrack {
   description: string;
   status: DocStatus;
   priority: DocClassification;
+  communicationType?: DocCommunication; // Added field
   assignedTo: string; // User ID or Department Name
   createdBy: string; // User ID
   createdAt: string;

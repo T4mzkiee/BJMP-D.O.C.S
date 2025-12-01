@@ -1,6 +1,7 @@
 
+
 import { createClient } from '@supabase/supabase-js';
-import { User, DocumentTrack, DocumentLog, Role, DocStatus } from '../types';
+import { User, DocumentTrack, DocumentLog, Role, DocStatus, DocCommunication } from '../types';
 
 // Credentials provided by the user
 const supabaseUrl = 'https://vpjzqalmonzqjiprichk.supabase.co';
@@ -73,6 +74,7 @@ export const mapDocFromDB = (d: any, logs: any[]): DocumentTrack => ({
   description: d.description,
   status: d.status as DocStatus,
   priority: d.priority,
+  communicationType: d.communication_type as DocCommunication || 'Regular', // Map from DB
   assignedTo: d.assigned_to,
   createdBy: d.created_by,
   createdAt: d.created_at || new Date().toISOString(),
@@ -89,6 +91,7 @@ export const mapDocToDB = (d: Partial<DocumentTrack>) => ({
   description: d.description,
   status: d.status,
   priority: d.priority,
+  communication_type: d.communicationType, // Map to DB
   assigned_to: d.assignedTo,
   created_by: d.createdBy,
   created_at: d.createdAt,
