@@ -92,6 +92,31 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
     setIsSaving(true);
 
     try {
+        // --- NEW: Server-Side Duplicate Check (Create Mode Only) ---
+        if (!editingUser) {
+            // Check for existing email OR existing name
+            // We use quotes around values to handle names with spaces correctly in the OR syntax
+            const { data: existingUsers, error: checkError } = await supabase
+                .from('users')
+                .select('id')
+                .or(`email.eq."${formData.email}",name.eq."${formData.name}"`);
+
+            if (checkError) {
+                console.error("Error checking duplicates:", checkError);
+                // We typically continue or stop depending on strictness. Stopping for safety.
+                alert("Error verifying database. Please try again.");
+                setIsSaving(false);
+                return;
+            }
+
+            if (existingUsers && existingUsers.length > 0) {
+                alert("user already exist or email has been used");
+                setIsSaving(false);
+                return;
+            }
+        }
+        // -----------------------------------------------------------
+
         // 1. Handle File Upload (if a file was selected)
         let finalAvatarUrl = formData.avatarUrl;
         if (selectedFile) {

@@ -69,9 +69,11 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   };
 
   const relevantDocs = useMemo(() => {
-    let filtered = [];
+    let filtered: DocumentTrack[] = [];
+    
+    // Create a copy to avoid mutating state
     if (currentUser.role === Role.ADMIN) {
-      filtered = documents;
+      filtered = [...documents];
     } else {
       filtered = documents.filter(doc => {
         const creator = users.find(u => u.id === doc.createdBy);
@@ -86,7 +88,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     // --- SORTING LOGIC ---
     // 1. Communication Type Hierarchy: Urgent > Priority > Regular
     // 2. Date Created: Newest First
-    const typeWeight = {
+    const typeWeight: Record<string, number> = {
       'Urgent': 3,
       'Priority': 2,
       'Regular': 1
@@ -161,12 +163,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 className="p-4 hover:bg-gray-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group"
               >
                 <div className="flex items-start space-x-4">
-                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h3 className="text-sm font-semibold text-gray-100 group-hover:text-gray-300 transition-colors">{doc.title}</h3>
+                      <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors">{doc.title}</h3>
                       <span className="text-xs text-gray-500 font-mono">{doc.referenceNumber}</span>
                     </div>
                     <p className="text-sm text-gray-400 mt-1 line-clamp-1">{doc.description}</p>
@@ -216,7 +218,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                   <div className="flex items-center space-x-2">
                     <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedDoc(doc); }}
-                        className="text-gray-400 hover:text-gray-200 p-1 rounded-full hover:bg-gray-600 transition-colors"
+                        className="text-gray-400 hover:text-blue-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
                         title="View History"
                     >
                         <History className="w-5 h-5" />

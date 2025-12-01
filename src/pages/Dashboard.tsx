@@ -114,24 +114,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   };
 
   // --- User View Logic ---
-  const incomingDocs = documents.filter(d => 
-    d.assignedTo === currentUser.department &&
-    d.status !== DocStatus.COMPLETED &&
-    d.status !== DocStatus.RETURNED
-  );
+  // SORTING HELPER
+  const sortDocuments = (docs: DocumentTrack[]) => {
+    const typeWeight: Record<string, number> = {
+      'Urgent': 3,
+      'Priority': 2,
+      'Regular': 1
+    };
 
-  const outgoingDocs = documents.filter(d => {
-    const creator = users.find(u => u.id === d.createdBy);
-    const createdByMyDept = creator?.department === currentUser.department;
-    
-    const forwardedByMyDept = d.logs.some(log => 
-        log.department === currentUser.department && log.action.includes('Forwarded')
+    return [...docs].sort((a, b) => {
+      // 1. Sort by Communication Type Hierarchy
+      const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
+      const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
+
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+
+      // 2. Sort by Date Created (Newest first)
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+  };
+
+  const incomingDocs = useMemo(() => {
+    const filtered = documents.filter(d => 
+      d.assignedTo === currentUser.department &&
+      d.status !== DocStatus.COMPLETED &&
+      d.status !== DocStatus.RETURNED
     );
+    return sortDocuments(filtered);
+  }, [documents, currentUser.department]);
 
-    const currentlyWithMyDept = d.assignedTo === currentUser.department;
+  const outgoingDocs = useMemo(() => {
+    const filtered = documents.filter(d => {
+      const creator = users.find(u => u.id === d.createdBy);
+      const createdByMyDept = creator?.department === currentUser.department;
+      
+      const forwardedByMyDept = d.logs.some(log => 
+          log.department === currentUser.department && log.action.includes('Forwarded')
+      );
 
-    return (createdByMyDept || forwardedByMyDept) && !currentlyWithMyDept;
-  });
+      const currentlyWithMyDept = d.assignedTo === currentUser.department;
+
+      return (createdByMyDept || forwardedByMyDept) && !currentlyWithMyDept;
+    });
+    return sortDocuments(filtered);
+  }, [documents, currentUser.department, users]);
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;
 
