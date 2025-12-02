@@ -1,11 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
-import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2 } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
-import { supabase } from '../utils/supabase';
+import { supabase, mapDocFromDB } from '../utils/supabase';
 
 interface DocsProps {
   documents: DocumentTrack[];
@@ -31,6 +31,11 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     doc: null
   });
 
+  // Clear Data Modal State
+  const [clearModal, setClearModal] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState('');
+
   const handleSave = (doc: DocumentTrack) => {
     setDocuments(prev => [doc, ...prev]);
     setIsModalOpen(false);
@@ -54,6 +59,83 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         await supabase.from('documents').delete().eq('id', deleteModal.doc.id);
 
         setDeleteModal({ isOpen: false, doc: null });
+    }
+  };
+
+  const handleSmartClearData = async () => {
+    if (clearConfirmText !== 'CONFIRM') return;
+    
+    setIsClearing(true);
+    try {
+        // 1. Identify "Keepers" (Latest document for each series) to preserve control numbers
+        const prefixMap = new Map<string, { id: string, series: number }>();
+
+        documents.forEach(doc => {
+            // Check if it's already a checkpoint
+            if (doc.title === '_SYSTEM_CHECKPOINT_') return;
+
+            // Logic matches GenerateControlNumber: Ends in 3 digits
+            const len = doc.referenceNumber.length;
+            if (len > 3) {
+                const prefix = doc.referenceNumber.slice(0, -3);
+                const seriesStr = doc.referenceNumber.slice(-3);
+                const series = parseInt(seriesStr, 10);
+                
+                if (!isNaN(series)) {
+                    if (!prefixMap.has(prefix) || series > prefixMap.get(prefix)!.series) {
+                        prefixMap.set(prefix, { id: doc.id, series });
+                    }
+                }
+            }
+        });
+
+        const idsToKeep = Array.from(prefixMap.values()).map(x => x.id);
+
+        // 2. Wipe ALL Logs
+        await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+        // 3. Wipe Documents (Except Keepers)
+        if (idsToKeep.length > 0) {
+            // Delete everything NOT in the keep list
+            await supabase.from('documents').delete().not('id', 'in', `(${idsToKeep.join(',')})`);
+            
+            // Convert Keepers into "System Checkpoints"
+            // We strip them of sensitive info but keep the ID and Reference Number
+            await supabase.from('documents').update({
+                title: '_SYSTEM_CHECKPOINT_',
+                description: 'Hidden system record to maintain control number continuity.',
+                status: DocStatus.ARCHIVED,
+                assigned_to: 'SYSTEM',
+                summary: '',
+                remarks: '',
+                priority: 'Simple Transaction',
+                communication_type: 'Regular'
+            }).in('id', idsToKeep);
+        } else {
+            // If no valid documents exist to keep, just wipe everything
+            await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        }
+
+        // 4. Refresh State
+        const { data } = await supabase.from('documents').select(`*, logs:document_logs(*)`);
+        if (data) {
+            // Re-map and update state
+            // The filteredDocs logic below will automatically hide the checkpoints
+            const appDocs = data.map((d: any) => mapDocFromDB(d, d.logs || []));
+            setDocuments(appDocs);
+        } else {
+            setDocuments([]);
+        }
+
+        setClearModal(false);
+        setClearConfirmText('');
+        alert("Data cleared successfully. Control number series have been preserved.");
+
+    } catch (error) {
+        console.error("Error clearing data:", error);
+        alert("An error occurred while clearing data.");
+    } finally {
+        setIsClearing(false);
     }
   };
 
@@ -107,14 +189,20 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
       // Secondary Sort: Date Created (Newest first)
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
+      
+      // Handle invalid dates safety
+      if (isNaN(dateA)) return 1;
+      if (isNaN(dateB)) return -1;
+
       return dateB - dateA;
     });
 
   }, [documents, currentUser, users]);
 
   const filteredDocs = relevantDocs.filter(d => 
-    d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    d.title !== '_SYSTEM_CHECKPOINT_' && // Hide checkpoints
+    (d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -128,14 +216,24 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
               : `Viewing documents associated with ${currentUser.department}.`}
           </p>
         </div>
-        {/* Re-enable New Document button for easier access, styled Grey */}
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Document</span>
-        </button>
+        <div className="flex space-x-3">
+            {currentUser.role === Role.ADMIN && (
+                <button
+                    onClick={() => setClearModal(true)}
+                    className="flex items-center space-x-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 px-4 py-2 rounded-lg transition-colors shadow-sm"
+                >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Clear Data</span>
+                </button>
+            )}
+            <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            >
+            <Plus className="w-4 h-4" />
+            <span>New Document</span>
+            </button>
+        </div>
       </div>
 
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
@@ -203,6 +301,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                           {doc.communicationType || 'Regular'}
                       </span>
 
+                      {/* Additional RETURNED badge for completed documents that were returned */}
                       {doc.status === DocStatus.COMPLETED && wasReturned && (
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
                               RETURNED
@@ -273,6 +372,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         document={selectedDoc}
       />
 
+      {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && deleteModal.doc && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 relative border border-gray-700">
@@ -305,6 +405,62 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                             className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
                         >
                             Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Clear Data Modal */}
+      {clearModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 relative border border-red-800/50">
+                <button 
+                    onClick={() => { setClearModal(false); setClearConfirmText(''); }}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+                
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-700 animate-pulse">
+                        <ShieldAlert className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Smart Wipe Data</h3>
+                    <div className="text-sm text-gray-400 mb-6 space-y-2">
+                        <p>This action is <span className="font-bold text-red-400">IRREVERSIBLE</span>.</p>
+                        <ul className="text-left bg-gray-900/50 p-3 rounded-lg border border-gray-700/50 text-xs space-y-1">
+                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-2"></span>Deletes ALL Transaction Logs</li>
+                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-2"></span>Deletes ALL Visible Documents</li>
+                            <li className="flex items-center text-green-400"><span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span><strong>Preserves</strong> Control Number Series Continuity</li>
+                        </ul>
+                    </div>
+                    
+                    <div className="w-full mb-6 text-left">
+                        <label className="block text-xs font-medium text-gray-500 mb-1 uppercase">Type "CONFIRM" to proceed</label>
+                        <input 
+                            type="text" 
+                            value={clearConfirmText}
+                            onChange={(e) => setClearConfirmText(e.target.value)}
+                            className="w-full bg-gray-900 border border-red-900/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-red-500 placeholder-gray-600"
+                            placeholder="CONFIRM"
+                        />
+                    </div>
+
+                    <div className="flex space-x-3 w-full">
+                        <button
+                            onClick={() => { setClearModal(false); setClearConfirmText(''); }}
+                            className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 font-medium"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSmartClearData}
+                            disabled={clearConfirmText !== 'CONFIRM' || isClearing}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        >
+                            {isClearing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Wipe Data'}
                         </button>
                     </div>
                 </div>
