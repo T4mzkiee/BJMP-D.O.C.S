@@ -63,11 +63,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const regularIncomingCount = documents.filter(d => d.status === DocStatus.INCOMING && !isDocCurrentlyReturned(d)).length;
 
   const statusCounts = [
-    { name: 'Incoming', value: regularIncomingCount, color: '#3B82F6' },
+    { name: 'Incoming', value: regularIncomingCount, color: '#6B7280' },
     { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
-    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#6B7280' },
+    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
   ];
 
   const priorityData = [
@@ -186,13 +186,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     const filtered = documents.filter(d => 
       d.assignedTo === currentUser.department &&
       d.status !== DocStatus.COMPLETED &&
-      d.status !== DocStatus.RETURNED
+      d.status !== DocStatus.RETURNED &&
+      d.title !== '_SYSTEM_CHECKPOINT_' // Filter out system checkpoints
     );
     return sortDocuments(filtered);
   }, [documents, currentUser.department]);
 
   const outgoingDocs = useMemo(() => {
     const filtered = documents.filter(d => {
+      if (d.title === '_SYSTEM_CHECKPOINT_') return false; // Filter out system checkpoints
+
       const creator = users.find(u => u.id === d.createdBy);
       const createdByMyDept = creator?.department === currentUser.department;
       
