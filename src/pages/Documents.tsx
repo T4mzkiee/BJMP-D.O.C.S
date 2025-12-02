@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
-import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2, Filter } from 'lucide-react';
+import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2, Filter, Archive } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
-import { supabase, mapDocFromDB } from '../utils/supabase';
+import { supabase, mapDocFromDB, mapLogToDB } from '../utils/supabase';
+import { uuid } from '../utils/crypto';
 
 interface DocsProps {
   documents: DocumentTrack[];
@@ -50,6 +51,40 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   const handleDeleteClick = (e: React.MouseEvent, doc: DocumentTrack) => {
     e.stopPropagation();
     setDeleteModal({ isOpen: true, doc });
+  };
+
+  const handleArchive = async (e: React.MouseEvent, doc: DocumentTrack) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to archive this document?")) return;
+
+    const newLog = {
+      id: uuid(),
+      date: new Date().toISOString(),
+      action: 'Document Archived',
+      department: currentUser.department,
+      userName: currentUser.name,
+      status: DocStatus.ARCHIVED,
+      remarks: 'Document moved to archive.'
+    };
+
+    const updatedDoc = {
+      ...doc,
+      status: DocStatus.ARCHIVED,
+      updatedAt: new Date().toISOString(),
+      logs: [...doc.logs, newLog]
+    };
+
+    setDocuments(prev => prev.map(d => d.id === doc.id ? updatedDoc : d));
+
+    try {
+      await supabase.from('documents').update({ 
+        status: DocStatus.ARCHIVED,
+        updated_at: updatedDoc.updatedAt
+      }).eq('id', doc.id);
+      await supabase.from('document_logs').insert(mapLogToDB(newLog, doc.id));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const confirmDelete = async () => {
@@ -265,7 +300,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     <option value={DocStatus.PROCESSING}>Processing</option>
                     <option value={DocStatus.RETURNED}>Returned</option>
                     <option value={DocStatus.COMPLETED}>Completed</option>
-                    <option value={DocStatus.ARCHIVED}>Archived</option>
                 </select>
             </div>
         </div>
@@ -348,6 +382,16 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <History className="w-5 h-5" />
                     </button>
+                    {/* Archive Action - Only for Completed Docs */}
+                    {doc.status === DocStatus.COMPLETED && (
+                        <button
+                            onClick={(e) => handleArchive(e, doc)}
+                            className="text-gray-400 hover:text-green-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
+                            title="Archive Document"
+                        >
+                            <Archive className="w-5 h-5" />
+                        </button>
+                    )}
                     {currentUser.role === Role.ADMIN && (
                         <button
                             onClick={(e) => handleDeleteClick(e, doc)}
