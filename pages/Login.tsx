@@ -205,7 +205,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             <div>
               <h2 className="text-3xl font-bold mb-4">Streamline Your Document Workflow</h2>
               <p className="text-blue-100 leading-relaxed">
-                A simple Document Tracking System Developed by JO1 Justin Benedict C Macuto.
+                A simple Document Tracking System by BJMP8 RICTMD TEAM.
+                Developed by JO1 Justin Benedict C Macuto - ICT Development Officer
               </p>
             </div>
             <div className="flex items-center space-x-2 text-sm text-blue-200">
