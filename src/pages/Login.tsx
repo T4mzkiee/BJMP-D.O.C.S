@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { ShieldCheck, ArrowRight, FileText, Lock, AlertCircle, Loader2, LogOut } from 'lucide-react';
@@ -131,19 +130,25 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       if (!pendingUser) return;
       setIsVerifying(true);
       try {
-          // Force set is_logged_in to false in DB
+          // 1. Force set is_logged_in to false in DB (Kick old session)
           await supabase.from('users').update({ is_logged_in: false }).eq('id', pendingUser.id);
           
-          // Clear prompt
-          setShowForceLogout(false);
-          setPendingUser(null);
-          setError('');
-          alert("Previous session invalidated. You may now login.");
+          // 2. Proceed to Login IMMEDIATELY (Don't ask user to click Sign In again)
+          // We manually reset the flag for the local object passed to onLogin
+          const userToLogin = { ...pendingUser, isLoggedIn: false };
+          
+          setFailedAttempts(0);
+          setLockoutUntil(null);
+          localStorage.removeItem('login_failed_attempts');
+          localStorage.removeItem('login_lockout_until');
+          
+          // Triggers App.tsx handleLogin, which sets is_logged_in = true for this new session
+          onLogin(userToLogin);
+
       } catch (err) {
           console.error(err);
           setError("Failed to force logout. Please try again.");
-      } finally {
-          setIsVerifying(false);
+          setIsVerifying(false); // Only stop loading if error
       }
   };
 
