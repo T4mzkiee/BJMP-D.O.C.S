@@ -30,6 +30,7 @@ export interface User {
   password?: string; // Hashed password
   salt?: string; // Unique salt per user
   avatarUrl?: string;
+  isLoggedIn?: boolean; // New field for session tracking
 }
 
 export interface DocumentLog {

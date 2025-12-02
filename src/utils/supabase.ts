@@ -52,7 +52,8 @@ export const mapUserFromDB = (u: any): User => ({
   department: u.department,
   password: u.password,
   salt: u.salt,
-  avatarUrl: u.avatar_url
+  avatarUrl: u.avatar_url,
+  isLoggedIn: u.is_logged_in // Map from DB
 });
 
 export const mapUserToDB = (u: Partial<User>) => ({
@@ -64,7 +65,8 @@ export const mapUserToDB = (u: Partial<User>) => ({
   department: u.department,
   password: u.password,
   salt: u.salt,
-  avatar_url: u.avatarUrl
+  avatar_url: u.avatarUrl,
+  is_logged_in: u.isLoggedIn // Map to DB
 });
 
 export const mapDocFromDB = (d: any, logs: any[]): DocumentTrack => ({
@@ -74,7 +76,7 @@ export const mapDocFromDB = (d: any, logs: any[]): DocumentTrack => ({
   description: d.description,
   status: d.status as DocStatus,
   priority: d.priority,
-  communicationType: d.communication_type as DocCommunication || 'Regular', // Map from DB
+  communicationType: d.communication_type as DocCommunication || 'Regular', 
   assignedTo: d.assigned_to,
   createdBy: d.created_by,
   createdAt: d.created_at || new Date().toISOString(),
@@ -91,7 +93,7 @@ export const mapDocToDB = (d: Partial<DocumentTrack>) => ({
   description: d.description,
   status: d.status,
   priority: d.priority,
-  communication_type: d.communicationType, // Map to DB
+  communication_type: d.communicationType,
   assigned_to: d.assignedTo,
   created_by: d.createdBy,
   created_at: d.createdAt,

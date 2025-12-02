@@ -1,8 +1,10 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { ShieldCheck, ArrowRight, FileText, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, FileText, Lock, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import { verifyPassword } from '../utils/crypto';
+import { supabase } from '../utils/supabase';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -19,6 +21,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>('');
+
+  // Concurrent Login Handling
+  const [showForceLogout, setShowForceLogout] = useState(false);
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
 
   // Initialize state from local storage on load
   useEffect(() => {
@@ -75,6 +81,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
     if (lockoutUntil) return;
     setIsVerifying(true);
+    setError('');
+    setShowForceLogout(false);
 
     // Find user by email first
     const user = users.find(u => u.email === email && u.isActive);
@@ -87,12 +95,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     }
 
     if (isValid && user) {
-      // Success: Reset security counters
-      setFailedAttempts(0);
-      setLockoutUntil(null);
-      localStorage.removeItem('login_failed_attempts');
-      localStorage.removeItem('login_lockout_until');
-      onLogin(user);
+      // Success: Check if already logged in
+      if (user.isLoggedIn) {
+          setPendingUser(user);
+          setShowForceLogout(true);
+          setError("User already logged in on another device.");
+      } else {
+          // Reset security counters
+          setFailedAttempts(0);
+          setLockoutUntil(null);
+          localStorage.removeItem('login_failed_attempts');
+          localStorage.removeItem('login_lockout_until');
+          onLogin(user);
+      }
     } else {
       // Failed Attempt
       const newAttempts = failedAttempts + 1;
@@ -110,6 +125,26 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       }
     }
     setIsVerifying(false);
+  };
+
+  const handleForceLogout = async () => {
+      if (!pendingUser) return;
+      setIsVerifying(true);
+      try {
+          // Force set is_logged_in to false in DB
+          await supabase.from('users').update({ is_logged_in: false }).eq('id', pendingUser.id);
+          
+          // Clear prompt
+          setShowForceLogout(false);
+          setPendingUser(null);
+          setError('');
+          alert("Previous session invalidated. You may now login.");
+      } catch (err) {
+          console.error(err);
+          setError("Failed to force logout. Please try again.");
+      } finally {
+          setIsVerifying(false);
+      }
   };
 
   const isLocked = !!lockoutUntil;
@@ -172,26 +207,44 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             </div>
 
             {error && !isLocked && (
-              <div className="flex items-center space-x-2 text-red-400 text-sm bg-red-900/20 p-3 rounded-lg border border-red-800">
+              <div className={`flex items-center space-x-2 text-sm p-3 rounded-lg border ${showForceLogout ? 'text-orange-400 bg-orange-900/20 border-orange-800' : 'text-red-400 bg-red-900/20 border-red-800'}`}>
                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                  <span>{error}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isLocked || isVerifying}
-              className="w-full bg-blue-600 hover:bg-blue-700 border border-blue-500 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
-            >
-              {isVerifying ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                  <>
-                    <span>Sign In</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </>
-              )}
-            </button>
+            {!showForceLogout ? (
+                <button
+                type="submit"
+                disabled={isLocked || isVerifying}
+                className="w-full bg-blue-600 hover:bg-blue-700 border border-blue-500 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
+                >
+                {isVerifying ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <>
+                        <span>Sign In</span>
+                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </>
+                )}
+                </button>
+            ) : (
+                <button
+                type="button"
+                onClick={handleForceLogout}
+                disabled={isVerifying}
+                className="w-full bg-orange-600 hover:bg-orange-700 border border-orange-500 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center group disabled:opacity-50"
+                >
+                {isVerifying ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                    <>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        <span>Force Logout Other Session</span>
+                    </>
+                )}
+                </button>
+            )}
           </form>
         </div>
 

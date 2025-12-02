@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
 import { INITIAL_USERS } from './constants';
@@ -153,7 +154,11 @@ const App: React.FC = () => {
              return [...prev, newUser];
           });
         } else if (payload.eventType === 'UPDATE') {
-          setUsers(prev => prev.map(u => u.id === payload.new.id ? mapUserFromDB(payload.new) : u));
+          // If the logged in user's isLoggedIn status changes to false, log them out locally
+          // This handles the "Force Logout" scenario from another device
+          const updatedUser = mapUserFromDB(payload.new);
+          
+          setUsers(prev => prev.map(u => u.id === payload.new.id ? updatedUser : u));
         } else if (payload.eventType === 'DELETE') {
           setUsers(prev => prev.filter(u => u.id !== payload.old.id));
         }
@@ -180,16 +185,41 @@ const App: React.FC = () => {
 
   }, []);
 
-  const handleLogin = (user: User) => {
+  // Monitor Auth Changes for Force Logout
+  useEffect(() => {
+    if (auth.isAuthenticated && auth.currentUser) {
+        // Find the most recent version of the current user in the user list
+        // This is updated by the realtime listener above
+        const userInState = users.find(u => u.id === auth.currentUser!.id);
+        
+        if (userInState && userInState.isLoggedIn === false) {
+            // If the database says we are logged out, force local logout
+            alert("You have been logged out remotely.");
+            handleLogout(true); // true = skip DB update (already done remotely)
+        }
+    }
+  }, [users, auth.isAuthenticated]);
+
+
+  const handleLogin = async (user: User) => {
     setAuth({ isAuthenticated: true, currentUser: user });
     setCurrentPage('DASHBOARD');
     localStorage.setItem('bjmp_docs_user', JSON.stringify(user));
+    
+    // Update DB to logged in
+    await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async (skipDbUpdate: boolean = false) => {
+    // If not skipping DB update, set is_logged_in to false in DB
+    if (!skipDbUpdate && auth.currentUser) {
+        await supabase.from('users').update({ is_logged_in: false }).eq('id', auth.currentUser.id);
+    }
+
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
     localStorage.removeItem('bjmp_docs_user');
+    
     if (logoutTimerRef.current) {
         clearTimeout(logoutTimerRef.current);
     }
@@ -281,7 +311,7 @@ const App: React.FC = () => {
         currentPage={currentPage} 
         user={auth.currentUser!} 
         onNavigate={handleNavigate} 
-        onLogout={handleLogout}
+        onLogout={() => handleLogout()} // Normal logout triggers DB update
         isOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         isCollapsed={isSidebarCollapsed}
