@@ -210,7 +210,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             </div>
             <div className="flex items-center space-x-2 text-sm text-blue-200">
               <ShieldCheck className="w-5 h-5" />
-              <span>Developed by JO1 Macuto</span>
+              <span>All rights reserved 2025.</span>
             </div>
           </div>
         </div>
