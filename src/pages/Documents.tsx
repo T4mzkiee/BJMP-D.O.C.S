@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
-import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2, Filter } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -18,6 +18,7 @@ interface DocsProps {
 export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, currentUser, users, departments }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL'); // NEW: Status Filter State
   const [selectedDoc, setSelectedDoc] = useState<DocumentTrack | null>(null);
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
     isOpen: false,
@@ -120,7 +121,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         const { data } = await supabase.from('documents').select(`*, logs:document_logs(*)`);
         if (data) {
             // Re-map and update state
-            // The filteredDocs logic below will automatically hide the checkpoints
             const appDocs = data.map((d: any) => mapDocFromDB(d, d.logs || []));
             setDocuments(appDocs);
         } else {
@@ -146,6 +146,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
       case DocStatus.OUTGOING: return 'bg-orange-900/50 text-orange-300 border border-orange-800';
       case DocStatus.PROCESSING: return 'bg-yellow-900/50 text-yellow-300 border border-yellow-800';
       case DocStatus.COMPLETED: return 'bg-green-900/50 text-green-300 border border-green-800';
+      case DocStatus.ARCHIVED: return 'bg-gray-700 text-gray-400 border border-gray-600';
       default: return 'bg-gray-700 text-gray-300 border border-gray-600';
     }
   };
@@ -177,20 +178,16 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     };
 
     return filtered.sort((a, b) => {
-      // Get weights (default to 1 if undefined)
       const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
       const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
 
-      // Primary Sort: Communication Type (Highest weight first)
       if (weightA !== weightB) {
         return weightB - weightA;
       }
 
-      // Secondary Sort: Date Created (Newest first)
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       
-      // Handle invalid dates safety
       if (isNaN(dateA)) return 1;
       if (isNaN(dateB)) return -1;
 
@@ -199,15 +196,19 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
 
   }, [documents, currentUser, users]);
 
-  const filteredDocs = relevantDocs.filter(d => 
-    d.title !== '_SYSTEM_CHECKPOINT_' && // Hide checkpoints
-    (d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Combined Filter: Search Term + Status Filter + Hide System Checkpoints
+  const filteredDocs = relevantDocs.filter(d => {
+    const matchesSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' ? true : d.status === statusFilter;
+    const isNotCheckpoint = d.title !== '_SYSTEM_CHECKPOINT_';
+
+    return matchesSearch && matchesStatus && isNotCheckpoint;
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Documents</h1>
           <p className="text-sm text-gray-400">
@@ -216,19 +217,19 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
               : `Viewing documents associated with ${currentUser.department}.`}
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 w-full sm:w-auto">
             {currentUser.role === Role.ADMIN && (
                 <button
                     onClick={() => setClearModal(true)}
-                    className="flex items-center space-x-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 px-4 py-2 rounded-lg transition-colors shadow-sm"
+                    className="flex items-center space-x-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 px-4 py-2 rounded-lg transition-colors shadow-sm text-sm"
                 >
                     <Trash2 className="w-4 h-4" />
-                    <span>Clear Data</span>
+                    <span className="hidden sm:inline">Clear Data</span>
                 </button>
             )}
             <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm w-full sm:w-auto text-sm font-medium"
             >
             <Plus className="w-4 h-4" />
             <span>New Document</span>
@@ -237,21 +238,46 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
       </div>
 
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
-         <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex items-center space-x-3">
-            <Search className="w-4 h-4 text-gray-400" />
-            <input 
-                type="text" 
-                placeholder="Search by title or reference ID..." 
-                className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-gray-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
+         <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex flex-col sm:flex-row items-center gap-4">
+            {/* Search Bar */}
+            <div className="flex items-center space-x-3 bg-gray-700/50 rounded-lg px-3 py-2 flex-1 w-full border border-gray-600">
+                <Search className="w-4 h-4 text-gray-400" />
+                <input 
+                    type="text" 
+                    placeholder="Search by title or reference ID..." 
+                    className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-gray-500"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            {/* Status Filter Dropdown */}
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
+                >
+                    <option value="ALL">All Statuses</option>
+                    <option value={DocStatus.INCOMING}>Incoming</option>
+                    <option value={DocStatus.OUTGOING}>Outgoing</option>
+                    <option value={DocStatus.PROCESSING}>Processing</option>
+                    <option value={DocStatus.RETURNED}>Returned</option>
+                    <option value={DocStatus.COMPLETED}>Completed</option>
+                    <option value={DocStatus.ARCHIVED}>Archived</option>
+                </select>
+            </div>
         </div>
+
         <div className="divide-y divide-gray-700">
           {filteredDocs.length > 0 ? (
             filteredDocs.map(doc => {
+              // Check if the document was returned
               const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
               const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
+
+              // Check if document WAS returned in its history (for completed docs)
               const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
 
               return (
@@ -342,7 +368,9 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                   </div>
                   <h3 className="text-gray-200 font-medium">No documents found</h3>
                   <p className="text-gray-500 text-sm mt-1">
-                    {searchTerm ? "No results match your search." : "You don't have any associated documents yet."}
+                    {searchTerm ? "No results match your search." : 
+                     statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} documents found.` :
+                     "You don't have any associated documents yet."}
                   </p>
               </div>
           )}
