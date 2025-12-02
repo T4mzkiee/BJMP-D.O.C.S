@@ -29,6 +29,9 @@ const App: React.FC = () => {
 
   // Ref to track if we've already warned/logged out to prevent double-firing
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Ref to prevent race conditions during immediate login after force logout
+  const isJustLoggedIn = useRef(false);
 
   // --- DATA LOADING & AUTH RESTORATION ---
   useEffect(() => {
@@ -185,6 +188,9 @@ const App: React.FC = () => {
 
   // Monitor Auth Changes for Force Logout
   useEffect(() => {
+    // IGNORE checks if we just logged in (Grace Period)
+    if (isJustLoggedIn.current) return;
+
     if (auth.isAuthenticated && auth.currentUser) {
         // Find the most recent version of the current user in the user list
         // This is updated by the realtime listener above
@@ -201,7 +207,13 @@ const App: React.FC = () => {
 
 
   const handleLogin = async (user: User) => {
-    // 1. Optimistically update local Users state to "Logged In"
+    // 1. Set Grace Period Flag to prevent the "Force Logout" signal from killing this session
+    isJustLoggedIn.current = true;
+    setTimeout(() => {
+        isJustLoggedIn.current = false;
+    }, 2000); // 2 seconds immunity
+
+    // 2. Optimistically update local Users state to "Logged In"
     // This prevents the Security Monitor (useEffect above) from kicking us out immediately
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isLoggedIn: true } : u));
 
@@ -210,7 +222,7 @@ const App: React.FC = () => {
     setCurrentPage('DASHBOARD');
     localStorage.setItem('bjmp_docs_user', JSON.stringify(userWithAuth));
     
-    // 2. Update DB to logged in
+    // 3. Update DB to logged in
     await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
   };
 
