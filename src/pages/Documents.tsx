@@ -296,7 +296,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 >
                     <option value="ALL">All Statuses</option>
                     <option value={DocStatus.INCOMING}>Incoming</option>
-                    <option value={DocStatus.OUTGOING}>Outgoing</option>
                     <option value={DocStatus.PROCESSING}>Processing</option>
                     <option value={DocStatus.RETURNED}>Returned</option>
                     <option value={DocStatus.COMPLETED}>Completed</option>
