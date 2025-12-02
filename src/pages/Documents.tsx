@@ -231,12 +231,38 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
 
   }, [documents, currentUser, users]);
 
+  // Helper to check if a document is strictly "Returned" (even if status is INCOMING)
+  const isDocReturned = (d: DocumentTrack) => {
+    if (d.status === DocStatus.RETURNED) return true;
+    if (d.status === DocStatus.INCOMING) {
+        const lastLog = d.logs.length > 0 ? d.logs[d.logs.length - 1] : null;
+        return !!(lastLog && lastLog.action.includes('Returned'));
+    }
+    return false;
+  };
+
   // Combined Filter: Search Term + Status Filter + Hide System Checkpoints
   const filteredDocs = relevantDocs.filter(d => {
     const matchesSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' ? true : d.status === statusFilter;
+    
     const isNotCheckpoint = d.title !== '_SYSTEM_CHECKPOINT_';
+
+    let matchesStatus = true;
+    if (statusFilter !== 'ALL') {
+        const docIsReturned = isDocReturned(d);
+
+        if (statusFilter === DocStatus.INCOMING) {
+            // Incoming ONLY shows fresh incoming, NO returned docs
+            matchesStatus = d.status === DocStatus.INCOMING && !docIsReturned;
+        } else if (statusFilter === DocStatus.RETURNED) {
+            // Returned shows ONLY returned docs
+            matchesStatus = docIsReturned;
+        } else {
+            // Other statuses match directly
+            matchesStatus = d.status === statusFilter;
+        }
+    }
 
     return matchesSearch && matchesStatus && isNotCheckpoint;
   });
