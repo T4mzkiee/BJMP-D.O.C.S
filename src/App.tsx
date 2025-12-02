@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
 import { INITIAL_USERS } from './constants';
@@ -192,26 +190,36 @@ const App: React.FC = () => {
         // This is updated by the realtime listener above
         const userInState = users.find(u => u.id === auth.currentUser!.id);
         
+        // Only trigger logout if we explicitly see isLoggedIn === false
+        // The handleLogin function now pre-sets this to true to avoid initial race conditions
         if (userInState && userInState.isLoggedIn === false) {
-            // If the database says we are logged out, force local logout
             alert("You have been logged out remotely.");
-            handleLogout(true); // true = skip DB update (already done remotely)
+            handleLogout(true); 
         }
     }
   }, [users, auth.isAuthenticated]);
 
 
   const handleLogin = async (user: User) => {
-    setAuth({ isAuthenticated: true, currentUser: user });
+    // 1. Optimistically update local Users state to "Logged In"
+    // This prevents the Security Monitor (useEffect above) from kicking us out immediately
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isLoggedIn: true } : u));
+
+    const userWithAuth = { ...user, isLoggedIn: true };
+    setAuth({ isAuthenticated: true, currentUser: userWithAuth });
     setCurrentPage('DASHBOARD');
-    localStorage.setItem('bjmp_docs_user', JSON.stringify(user));
+    localStorage.setItem('bjmp_docs_user', JSON.stringify(userWithAuth));
     
-    // Update DB to logged in
+    // 2. Update DB to logged in
     await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
   };
 
   const handleLogout = async (skipDbUpdate: boolean = false) => {
-    // If not skipping DB update, set is_logged_in to false in DB
+    // Optimistically update users state to "Logged Out"
+    if (auth.currentUser) {
+        setUsers(prev => prev.map(u => u.id === auth.currentUser!.id ? { ...u, isLoggedIn: false } : u));
+    }
+
     if (!skipDbUpdate && auth.currentUser) {
         await supabase.from('users').update({ is_logged_in: false }).eq('id', auth.currentUser.id);
     }
