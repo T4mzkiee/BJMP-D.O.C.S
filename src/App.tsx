@@ -226,24 +226,38 @@ const App: React.FC = () => {
     await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
   };
 
-  const handleLogout = async (skipDbUpdate: boolean = false) => {
-    // Optimistically update users state to "Logged Out"
-    if (auth.currentUser) {
-        setUsers(prev => prev.map(u => u.id === auth.currentUser!.id ? { ...u, isLoggedIn: false } : u));
-    }
+const handleLogout = (skipDbUpdate: boolean = false) => {
+  const userId = auth.currentUser?.id;
 
-    if (!skipDbUpdate && auth.currentUser) {
-        await supabase.from('users').update({ is_logged_in: false }).eq('id', auth.currentUser.id);
-    }
+  // --- 1. IMMEDIATE UI LOGOUT (PRIORITY) ---
+  // Optimistically update state
+  if (userId) {
+    setUsers(prev =>
+      prev.map(u => u.id === userId ? { ...u, isLoggedIn: false } : u)
+    );
+  }
 
-    setAuth({ isAuthenticated: false, currentUser: null });
-    setCurrentPage('LOGIN');
-    localStorage.removeItem('bjmp_docs_user');
-    
-    if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-    }
-  };
+  // Clear auth and redirect instantly
+  setAuth({ isAuthenticated: false, currentUser: null });
+  setCurrentPage('LOGIN');
+  localStorage.removeItem('bjmp_docs_user');
+
+  // Clear idle timers
+  if (logoutTimerRef.current) {
+    clearTimeout(logoutTimerRef.current);
+  }
+
+  // --- 2. BACKGROUND DB UPDATE (NON-BLOCKING) ---
+  if (!skipDbUpdate && userId) {
+    // Fire-and-forget Promise (no await, no UI blocking)
+    supabase
+      .from('users')
+      .update({ is_logged_in: false })
+      .eq('id', userId)
+      .catch(err => console.error("Background logout DB update failed:", err));
+  }
+};
+
 
   // --- IDLE TIMER LOGIC ---
   useEffect(() => {
