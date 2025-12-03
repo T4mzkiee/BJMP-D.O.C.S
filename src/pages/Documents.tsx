@@ -377,7 +377,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                       <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors break-all">{doc.title}</h3>
                       <span className="text-xs text-gray-500 font-mono whitespace-nowrap">{doc.referenceNumber}</span>
                     </div>
-                    {/* Added break-all and text-justify for responsive long text */}
                     <p className="text-sm text-gray-400 mt-1 line-clamp-1 break-all text-justify">{doc.description}</p>
                     <div className="flex flex-col gap-1 mt-1">
                         {doc.summary && (
@@ -394,17 +393,18 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     </div>
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
-                      <span className={`text-[10px] font-medium p-2 rounded-lg ${
-                          doc.priority === 'Highly Technical Transaction' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
-                          doc.priority === 'Complex Transaction' ? 'bg-orange-900/50 text-orange-300 border border-orange-800' : 'bg-green-900/50 text-green-300 border border-green-800'
+                      
+                      <span className={`text-xs font-medium ${
+                          doc.priority === 'Highly Technical Transaction' ? 'text-red-400' : 
+                          doc.priority === 'Complex Transaction' ? 'text-orange-400' : 'text-green-400'
                       }`}>
                           {doc.priority}
                       </span>
 
-                      <span className={`text-[10px] font-medium p-2 rounded-lg ${
-                          doc.communicationType === 'Urgent' ? 'bg-red-600 text-white border border-red-400 animate-pulse font-bold shadow-red-500/50 shadow-lg' : 
-                          doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
-                          'bg-gray-700/50 text-gray-300 border border-gray-600'
+                      <span className={`text-xs font-bold uppercase ${
+                          doc.communicationType === 'Urgent' ? 'text-red-500 animate-pulse' : 
+                          doc.communicationType === 'Priority' ? 'text-yellow-500 animate-pulse' : 
+                          'text-gray-500'
                       }`}>
                           {doc.communicationType || 'Regular'}
                       </span>

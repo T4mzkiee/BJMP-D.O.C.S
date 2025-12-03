@@ -236,14 +236,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       return (createdByMyDept || forwardedByMyDept) && !currentlyWithMyDept;
     });
 
-    // We do NOT use statusFilter here because we removed the dropdown for Outgoing tab
-    let filtered = baseDocs.filter(d => 
+    let filtered = baseDocs;
+
+    // We do NOT use statusFilter here for 'ALL' because we removed the dropdown for Outgoing tab is handled in UI, 
+    // but logic-wise we should still filter standard stuff.
+    // However, if we want to show 'Completed' in Outgoing ONLY via filter, we need the dropdown.
+    // The request was to REMOVE the filter dropdown in Outgoing tab. 
+    // So we just default to hiding Archived and Completed.
+    filtered = baseDocs.filter(d => 
         d.status !== DocStatus.ARCHIVED && 
         d.status !== DocStatus.COMPLETED
     );
 
     return sortDocuments(filtered);
-  }, [documents, currentUser.department, users]); // Removed statusFilter from deps
+  }, [documents, currentUser.department, users]); 
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;
 
@@ -769,7 +775,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </button>
         </div>
 
-        {/* TOOLBAR: Search & Filter (New) */}
+        {/* TOOLBAR: Search & Filter */}
         <div className="p-3 border-b border-gray-700 bg-gray-900/20 flex flex-col sm:flex-row gap-3">
             {/* Search Bar */}
             <div className="relative flex-1">
@@ -850,18 +856,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                             {activeTab === 'incoming' ? resolveName(doc.createdBy) : resolveName(doc.assignedTo)}
                                         </span>
                                     </span>
-                                    <span className={`text-[10px] font-medium p-2 rounded-lg ${
-                                        doc.priority === 'Highly Technical Transaction' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
-                                        doc.priority === 'Complex Transaction' ? 'bg-orange-900/50 text-orange-300 border border-orange-800' : 'bg-green-900/50 text-green-300 border border-green-800'
+                                    
+                                    <span className={`text-xs font-medium ${
+                                        doc.priority === 'Highly Technical Transaction' ? 'text-red-400' : 
+                                        doc.priority === 'Complex Transaction' ? 'text-orange-400' : 'text-green-400'
                                     }`}>
                                         {doc.priority}
                                     </span>
 
-                                    {/* Communication Type Badge with Effects */}
-                                    <span className={`text-[10px] font-medium p-2 rounded-lg ${
-                                        doc.communicationType === 'Urgent' ? 'bg-red-600 text-white border border-red-400 animate-pulse font-bold shadow-red-500/50 shadow-lg' : 
-                                        doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
-                                        'bg-gray-700/50 text-gray-300 border border-gray-600'
+                                    <span className={`text-xs font-bold uppercase ${
+                                        doc.communicationType === 'Urgent' ? 'text-red-500 animate-pulse' : 
+                                        doc.communicationType === 'Priority' ? 'text-yellow-500 animate-pulse' : 
+                                        'text-gray-500'
                                     }`}>
                                         {doc.communicationType || 'Regular'}
                                     </span>
