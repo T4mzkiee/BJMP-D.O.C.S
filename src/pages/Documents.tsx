@@ -340,6 +340,13 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
               const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
               const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
 
+              // Determine Archive Permission:
+              // 1. Must be COMPLETED
+              // 2. Must be the Originator (Creator's department == User's department) OR Admin
+              const creator = users.find(u => u.id === doc.createdBy);
+              const isOriginatingDept = creator && currentUser.department === creator.department;
+              const canArchive = doc.status === DocStatus.COMPLETED && (isOriginatingDept || currentUser.role === Role.ADMIN);
+
               return (
               <div 
                 key={doc.id} 
@@ -410,8 +417,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <History className="w-5 h-5" />
                     </button>
-                    {/* Archive Action - Only for Completed Docs AND NOT already in Archive View */}
-                    {!isArchiveView && doc.status === DocStatus.COMPLETED && (
+                    {/* Archive Action - Only for Completed Docs, Originating Dept, and NOT already in Archive View */}
+                    {!isArchiveView && canArchive && (
                         <button
                             onClick={(e) => handleArchive(e, doc)}
                             className="text-gray-400 hover:text-green-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
