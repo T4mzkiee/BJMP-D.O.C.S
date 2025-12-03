@@ -753,7 +753,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 }`}
             >
                 <ArrowDownLeft className="w-4 h-4" />
-                <span>Incoming ({incomingDocs.length})</span>
+                <span>Incoming</span>
+                {incomingDocs.length > 0 && (
+                    <span className="ml-2 relative flex h-5 min-w-[20px] items-center justify-center">
+                        {/* Ping effect only when not active to draw attention */}
+                        {activeTab !== 'incoming' && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        )}
+                        <span className={`relative inline-flex rounded-full h-5 min-w-[20px] px-1.5 text-white text-[10px] items-center justify-center font-bold ${
+                            activeTab === 'incoming' ? 'bg-blue-600' : 'bg-red-600'
+                        }`}>
+                            {incomingDocs.length}
+                        </span>
+                    </span>
+                )}
             </button>
             <button
                 onClick={() => setActiveTab('outgoing')}
