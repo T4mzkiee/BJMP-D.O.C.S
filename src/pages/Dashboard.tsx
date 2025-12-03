@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
@@ -464,12 +465,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        // Only delete documents that are NOT checkpoints
+        const { error } = await supabase.from('documents').delete().neq('title', '_SYSTEM_CHECKPOINT_');
         if (error) throw error;
-        setDocuments([]);
+        
+        // Also wipe logs
+        await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+        setDocuments(prev => prev.filter(d => d.title === '_SYSTEM_CHECKPOINT_'));
         setClearDataModal(false);
         setClearConfirmationText('');
-        alert("System data has been successfully wiped.");
+        alert("System data has been successfully wiped. Checkpoints preserved.");
     } catch (error) {
         console.error("Error clearing data:", error);
         alert("Failed to clear data. Please check console.");

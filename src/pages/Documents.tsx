@@ -109,7 +109,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         const prefixMap = new Map<string, { id: string, series: number }>();
 
         documents.forEach(doc => {
-            // Check if it's already a checkpoint
+            // Check if it's already a checkpoint - we don't need to add it to prefixMap, 
+            // but we MUST ensure we don't delete it later.
             if (doc.title === '_SYSTEM_CHECKPOINT_') return;
 
             // Logic matches GenerateControlNumber: Ends in 3 digits
@@ -132,10 +133,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         // 2. Wipe ALL Logs
         await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
-        // 3. Wipe Documents (Except Keepers)
+        // 3. Wipe Documents (Except Keepers AND Existing Checkpoints)
         if (idsToKeep.length > 0) {
-            // Delete everything NOT in the keep list
-            await supabase.from('documents').delete().not('id', 'in', `(${idsToKeep.join(',')})`);
+            // Delete everything NOT in the keep list AND NOT an existing checkpoint
+            await supabase.from('documents').delete()
+                .neq('title', '_SYSTEM_CHECKPOINT_')
+                .not('id', 'in', `(${idsToKeep.join(',')})`);
             
             // Convert Keepers into "System Checkpoints"
             // We strip them of sensitive info but keep the ID and Reference Number
@@ -150,8 +153,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 communication_type: 'Regular'
             }).in('id', idsToKeep);
         } else {
-            // If no valid documents exist to keep, just wipe everything
-            await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // If no NEW documents exist to keep, just wipe everything EXCEPT existing checkpoints
+            await supabase.from('documents').delete().neq('title', '_SYSTEM_CHECKPOINT_');
         }
 
         // 4. Refresh State
@@ -191,6 +194,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   const relevantDocs = useMemo(() => {
     let filtered: DocumentTrack[] = [];
     
+    // Create a copy to avoid mutating state
     if (currentUser.role === Role.ADMIN) {
       filtered = [...documents];
     } else {
@@ -321,6 +325,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <option value="ALL">All Statuses</option>
                         <option value={DocStatus.INCOMING}>Incoming</option>
+                        {/* Removed Outgoing from filter list as requested */}
                         <option value={DocStatus.PROCESSING}>Processing</option>
                         <option value={DocStatus.RETURNED}>Returned</option>
                         <option value={DocStatus.COMPLETED}>Completed</option>
