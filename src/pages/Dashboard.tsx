@@ -677,7 +677,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
            <h1 className="text-2xl font-bold text-white">
              {currentUser.role === Role.MESSAGE_CENTER ? 'Message Center Dispatch' : 'My Workspace'}
            </h1>
-           <p className="text-sm text-gray-400">Manage your incoming and outgoing documents.</p>
+           <div className="flex flex-col">
+             <p className="text-sm text-gray-400">Manage your incoming and outgoing documents.</p>
+             <p className="text-xs text-blue-400 mt-1 font-medium">
+               Welcome, <span className="text-gray-200">{currentUser.name}</span> | {currentUser.department}
+             </p>
+           </div>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
