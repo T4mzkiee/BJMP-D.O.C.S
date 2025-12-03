@@ -236,21 +236,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       return (createdByMyDept || forwardedByMyDept) && !currentlyWithMyDept;
     });
 
-    let filtered = baseDocs;
-
-    if (statusFilter === 'ALL') {
-        // Default View: Show Active Only (Exclude Archived AND Completed)
-        filtered = baseDocs.filter(d => 
-            d.status !== DocStatus.ARCHIVED && 
-            d.status !== DocStatus.COMPLETED
-        );
-    } else {
-        // Specific Filter
-        filtered = baseDocs.filter(d => d.status === statusFilter);
-    }
+    // We do NOT use statusFilter here because we removed the dropdown for Outgoing tab
+    let filtered = baseDocs.filter(d => 
+        d.status !== DocStatus.ARCHIVED && 
+        d.status !== DocStatus.COMPLETED
+    );
 
     return sortDocuments(filtered);
-  }, [documents, currentUser.department, users, statusFilter]);
+  }, [documents, currentUser.department, users]); // Removed statusFilter from deps
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;
 
@@ -798,20 +791,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 )}
             </div>
 
-            {/* Status Filter */}
-            <div className="relative w-full sm:w-48">
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
-                >
-                    <option value="ALL">All Statuses</option>
-                    <option value={DocStatus.INCOMING}>Incoming</option>
-                    <option value={DocStatus.PROCESSING}>Processing</option>
-                    <option value={DocStatus.RETURNED}>Returned</option>
-                </select>
-                <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-2.5 pointer-events-none" />
-            </div>
+            {/* Status Filter - Only Show for Incoming Tab */}
+            {activeTab === 'incoming' && (
+                <div className="relative w-full sm:w-48">
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                    >
+                        <option value="ALL">All Statuses</option>
+                        <option value={DocStatus.INCOMING}>Incoming</option>
+                        <option value={DocStatus.PROCESSING}>Processing</option>
+                        <option value={DocStatus.RETURNED}>Returned</option>
+                    </select>
+                    <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-2.5 pointer-events-none" />
+                </div>
+            )}
         </div>
 
         {/* List Content */}
