@@ -26,7 +26,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [dashboardSearchTerm, setDashboardSearchTerm] = useState(''); // New State for Search
+  const [dashboardSearchTerm, setDashboardSearchTerm] = useState('');
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
     isOpen: false,
     controlNumber: '',
@@ -187,8 +187,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   };
 
   // NOTIFICATION COUNT
-  // Strictly count documents that are INCOMING.
-  // This excludes PROCESSING, RETURNED, COMPLETED, ARCHIVED.
   const notificationCount = useMemo(() => {
     return documents.filter(d => 
       d.assignedTo === currentUser.department &&
@@ -747,7 +745,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         {/* Tabs */}
         <div className="flex border-b border-gray-700">
             <button
-                onClick={() => { setActiveTab('incoming'); setDashboardSearchTerm(''); }}
+                onClick={() => { setActiveTab('incoming'); setDashboardSearchTerm(''); setStatusFilter('ALL'); }}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'incoming' 
                     ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
@@ -766,7 +764,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 )}
             </button>
             <button
-                onClick={() => { setActiveTab('outgoing'); setDashboardSearchTerm(''); }}
+                onClick={() => { setActiveTab('outgoing'); setDashboardSearchTerm(''); setStatusFilter('ALL'); }}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'outgoing' 
                     ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
@@ -778,9 +776,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </button>
         </div>
 
-        {/* Dashboard Search Bar (Inside Tab Content) */}
-        <div className="p-3 border-b border-gray-700 bg-gray-900/20">
-            <div className="relative">
+        {/* TOOLBAR: Search & Filter (New) */}
+        <div className="p-3 border-b border-gray-700 bg-gray-900/20 flex flex-col sm:flex-row gap-3">
+            {/* Search Bar */}
+            <div className="relative flex-1">
                 <input
                     type="text"
                     value={dashboardSearchTerm}
@@ -797,6 +796,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                         <X className="w-4 h-4" />
                     </button>
                 )}
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative w-full sm:w-48">
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                >
+                    <option value="ALL">All Statuses</option>
+                    <option value={DocStatus.INCOMING}>Incoming</option>
+                    <option value={DocStatus.PROCESSING}>Processing</option>
+                    <option value={DocStatus.RETURNED}>Returned</option>
+                </select>
+                <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-2.5 pointer-events-none" />
             </div>
         </div>
 
@@ -904,12 +918,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/50 text-red-300 border-red-800' : 
                                     doc.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
                                     doc.status === DocStatus.OUTGOING ? 'bg-orange-900/50 text-orange-300 border-orange-800' : 
-                                    doc.status === DocStatus.ARCHIVED ? 'bg-gray-700 text-gray-400 border-gray-600' :
                                     'bg-blue-900/50 text-blue-300 border-blue-800'
                                 }`}>
                                     {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : 
                                      doc.status === DocStatus.RETURNED || isReturned ? 'RETURNED' : 
-                                     doc.status === DocStatus.ARCHIVED ? 'ARCHIVED' :
                                      doc.status}
                                 </span>
                             )}
