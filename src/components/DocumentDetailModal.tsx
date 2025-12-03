@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { DocumentTrack, DocStatus } from '../types';
-import { X, Save, Calendar, User } from 'lucide-react';
+import { DocumentTrack, DocStatus, User } from '../types';
+import { X, Save, Calendar, User as UserIcon } from 'lucide-react';
 
 interface DocumentDetailModalProps {
   isOpen: boolean;
@@ -9,9 +9,10 @@ interface DocumentDetailModalProps {
   document: DocumentTrack | null;
   onUpdateRemarks: (docId: string, newRemarks: string) => void;
   onOpenReader?: (doc: DocumentTrack) => void;
+  users: User[];
 }
 
-export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ isOpen, onClose, document, onUpdateRemarks }) => {
+export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ isOpen, onClose, document, onUpdateRemarks, users }) => {
   const [remarks, setRemarks] = useState('');
 
   useEffect(() => {
@@ -26,6 +27,10 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ isOpen
     onUpdateRemarks(document.id, remarks);
     onClose();
   };
+
+  // Resolve Creator Name
+  const creator = users.find(u => u.id === document.createdBy);
+  const creatorDisplay = creator ? `${creator.name} | ${creator.department}` : document.createdBy;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -60,9 +65,8 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ isOpen
             {/* Meta Data */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center text-gray-400">
-                    <User className="w-4 h-4 mr-2 text-gray-500" />
-                    Created By: <span className="font-medium text-gray-200 ml-1">{document.createdBy}</span> 
-                    {/* Note: In real app, map ID to Name here */}
+                    <UserIcon className="w-4 h-4 mr-2 text-gray-500" />
+                    Created By: <span className="font-medium text-gray-200 ml-1">{creatorDisplay}</span> 
                 </div>
                 <div className="flex items-center text-gray-400">
                     <Calendar className="w-4 h-4 mr-2 text-gray-500" />

@@ -468,17 +468,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        // 1. Delete ALL Logs (Unconditional Wipe)
-        await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-        // 2. Delete ALL Documents (Unconditional Wipe - Including _SYSTEM_CHECKPOINT_)
         const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (error) throw error;
-
         setDocuments([]);
         setClearDataModal(false);
         setClearConfirmationText('');
-        alert("System data has been successfully wiped. Control numbers reset.");
+        alert("System data has been successfully wiped.");
     } catch (error) {
         console.error("Error clearing data:", error);
         alert("Failed to clear data. Please check console.");
@@ -940,6 +935,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         onClose={() => setDetailModal({ isOpen: false, doc: null })}
         document={detailModal.doc}
         onUpdateRemarks={handleUpdateRemarks}
+        users={users} // Pass users here
       />
 
       <ForwardDocumentModal
