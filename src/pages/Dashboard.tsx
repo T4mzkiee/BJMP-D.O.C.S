@@ -185,6 +185,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     });
   };
 
+  // NOTIFICATION COUNT
+  // Strictly count documents that are INCOMING.
+  // This excludes PROCESSING, RETURNED, COMPLETED, ARCHIVED.
+  const notificationCount = useMemo(() => {
+    return documents.filter(d => 
+      d.assignedTo === currentUser.department &&
+      d.status === DocStatus.INCOMING &&
+      d.title !== '_SYSTEM_CHECKPOINT_'
+    ).length;
+  }, [documents, currentUser.department]);
+
   const incomingDocs = useMemo(() => {
     // 1. Base Filter: Assigned to Dept & Not Checkpoint
     const baseDocs = documents.filter(d => 
@@ -715,22 +726,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
            </div>
         </div>
         <div className="flex space-x-3">
-            <div className="relative">
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none pl-8"
-                >
-                    <option value="ALL">All Active</option>
-                    <option value={DocStatus.INCOMING}>Incoming</option>
-                    {/* Removed Outgoing from filter list as requested */}
-                    <option value={DocStatus.PROCESSING}>Processing</option>
-                    <option value={DocStatus.RETURNED}>Returned</option>
-                    <option value={DocStatus.COMPLETED}>Completed</option>
-                    <option value={DocStatus.ARCHIVED}>Archived</option>
-                </select>
-                <Filter className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5 pointer-events-none" />
-            </div>
             <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
