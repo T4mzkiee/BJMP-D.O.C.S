@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Settings, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Settings, ChevronLeft, ChevronRight, X, Archive } from 'lucide-react';
 import { Page, Role, User } from '../types';
 
 interface SidebarProps {
@@ -87,6 +87,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <FileText className="w-5 h-5 flex-shrink-0" />
             {!isCollapsed && <span className="ml-3 font-medium">Documents</span>}
+          </button>
+
+          <button 
+            onClick={() => { onNavigate('ARCHIVES'); onCloseMobile(); }} 
+            className={navItemClass('ARCHIVES')}
+            title={isCollapsed ? "Archives" : ""}
+          >
+            <Archive className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && <span className="ml-3 font-medium">Archives</span>}
           </button>
 
           <button 

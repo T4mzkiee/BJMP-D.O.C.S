@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
 import { INITIAL_USERS } from './constants';
@@ -226,38 +227,32 @@ const App: React.FC = () => {
     await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
   };
 
-const handleLogout = (skipDbUpdate: boolean = false) => {
-  const userId = auth.currentUser?.id;
+  const handleLogout = (skipDbUpdate: boolean = false) => {
+    const userId = auth.currentUser?.id;
 
-  // --- 1. IMMEDIATE UI LOGOUT (PRIORITY) ---
-  // Optimistically update state
-  if (userId) {
-    setUsers(prev =>
-      prev.map(u => u.id === userId ? { ...u, isLoggedIn: false } : u)
-    );
-  }
+    // --- 1. IMMEDIATE UI LOGOUT (PRIORITY) ---
+    // Optimistically update state
+    if (userId) {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, isLoggedIn: false } : u));
+    }
 
-  // Clear auth and redirect instantly
-  setAuth({ isAuthenticated: false, currentUser: null });
-  setCurrentPage('LOGIN');
-  localStorage.removeItem('bjmp_docs_user');
+    // Clear auth and redirect instantly
+    setAuth({ isAuthenticated: false, currentUser: null });
+    setCurrentPage('LOGIN');
+    localStorage.removeItem('bjmp_docs_user');
+    
+    // Clear idle timers
+    if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+    }
 
-  // Clear idle timers
-  if (logoutTimerRef.current) {
-    clearTimeout(logoutTimerRef.current);
-  }
-
-  // --- 2. BACKGROUND DB UPDATE (NON-BLOCKING) ---
-  if (!skipDbUpdate && userId) {
-    // Fire-and-forget Promise (no await, no UI blocking)
-    supabase
-      .from('users')
-      .update({ is_logged_in: false })
-      .eq('id', userId)
-      .catch(err => console.error("Background logout DB update failed:", err));
-  }
-};
-
+    // --- 2. BACKGROUND DB UPDATE (NON-BLOCKING) ---
+    if (!skipDbUpdate && userId) {
+        // Fire-and-forget Promise (no await, no UI blocking)
+        supabase.from('users').update({ is_logged_in: false }).eq('id', userId)
+        .catch(err => console.error("Background logout DB update failed:", err));
+    }
+  };
 
   // --- IDLE TIMER LOGIC ---
   useEffect(() => {
@@ -388,6 +383,17 @@ const handleLogout = (skipDbUpdate: boolean = false) => {
               currentUser={auth.currentUser!} 
               users={users}
               departments={departments}
+            />
+          )}
+
+          {currentPage === 'ARCHIVES' && (
+            <DocumentsPage 
+              documents={documents} 
+              setDocuments={setDocuments} 
+              currentUser={auth.currentUser!} 
+              users={users}
+              departments={departments}
+              isArchiveView={true}
             />
           )}
 

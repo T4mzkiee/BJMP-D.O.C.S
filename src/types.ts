@@ -71,4 +71,4 @@ export interface AuthState {
   currentUser: User | null;
 }
 
-export type Page = 'DASHBOARD' | 'USERS' | 'DOCUMENTS' | 'LOGIN' | 'ACCOUNT';
+export type Page = 'DASHBOARD' | 'USERS' | 'DOCUMENTS' | 'LOGIN' | 'ACCOUNT' | 'ARCHIVES';

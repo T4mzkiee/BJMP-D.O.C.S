@@ -14,12 +14,14 @@ interface DocsProps {
   currentUser: User;
   users: User[];
   departments: Department[];
+  isArchiveView?: boolean; // NEW: Prop to toggle Archive mode
 }
 
-export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, currentUser, users, departments }) => {
+export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, currentUser, users, departments, isArchiveView = false }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL'); // NEW: Status Filter State
+  // If isArchiveView is true, force default filter to ARCHIVED
+  const [statusFilter, setStatusFilter] = useState<string>(isArchiveView ? DocStatus.ARCHIVED : 'ALL'); 
   const [selectedDoc, setSelectedDoc] = useState<DocumentTrack | null>(null);
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
     isOpen: false,
@@ -189,7 +191,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   const relevantDocs = useMemo(() => {
     let filtered: DocumentTrack[] = [];
     
-    // Create a copy to avoid mutating state
     if (currentUser.role === Role.ADMIN) {
       filtered = [...documents];
     } else {
@@ -231,16 +232,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
 
   }, [documents, currentUser, users]);
 
-  // Helper to check if a document is strictly "Returned" (even if status is INCOMING)
-  const isDocReturned = (d: DocumentTrack) => {
-    if (d.status === DocStatus.RETURNED) return true;
-    if (d.status === DocStatus.INCOMING) {
-        const lastLog = d.logs.length > 0 ? d.logs[d.logs.length - 1] : null;
-        return !!(lastLog && lastLog.action.includes('Returned'));
-    }
-    return false;
-  };
-
   // Combined Filter: Search Term + Status Filter + Hide System Checkpoints
   const filteredDocs = relevantDocs.filter(d => {
     const matchesSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -249,17 +240,17 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     const isNotCheckpoint = d.title !== '_SYSTEM_CHECKPOINT_';
 
     let matchesStatus = true;
-    if (statusFilter !== 'ALL') {
-        const docIsReturned = isDocReturned(d);
-
-        if (statusFilter === DocStatus.INCOMING) {
-            // Incoming ONLY shows fresh incoming, NO returned docs
-            matchesStatus = d.status === DocStatus.INCOMING && !docIsReturned;
-        } else if (statusFilter === DocStatus.RETURNED) {
-            // Returned shows ONLY returned docs
-            matchesStatus = docIsReturned;
+    
+    if (isArchiveView) {
+        // In Archive View, STRICTLY show only ARCHIVED
+        matchesStatus = d.status === DocStatus.ARCHIVED;
+    } else {
+        // In Normal Document View
+        if (statusFilter === 'ALL') {
+            // Show everything EXCEPT Archived (and check points)
+            matchesStatus = d.status !== DocStatus.ARCHIVED;
         } else {
-            // Other statuses match directly
+            // Show specific selected status
             matchesStatus = d.status === statusFilter;
         }
     }
@@ -271,15 +262,20 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Documents</h1>
+          <h1 className="text-2xl font-bold text-white">
+            {isArchiveView ? 'Archived Documents' : 'Documents'}
+          </h1>
           <p className="text-sm text-gray-400">
-            {currentUser.role === Role.ADMIN 
-              ? "Master list of all tracked files in the system." 
-              : `Viewing documents associated with ${currentUser.department}.`}
+            {isArchiveView 
+                ? "History of all closed and archived transactions."
+                : currentUser.role === Role.ADMIN 
+                    ? "Master list of all tracked files in the system." 
+                    : `Viewing documents associated with ${currentUser.department}.`
+            }
           </p>
         </div>
         <div className="flex space-x-3 w-full sm:w-auto">
-            {currentUser.role === Role.ADMIN && (
+            {!isArchiveView && currentUser.role === Role.ADMIN && (
                 <button
                     onClick={() => setClearModal(true)}
                     className="flex items-center space-x-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 px-4 py-2 rounded-lg transition-colors shadow-sm text-sm"
@@ -288,13 +284,15 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     <span className="hidden sm:inline">Clear Data</span>
                 </button>
             )}
-            <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm w-full sm:w-auto text-sm font-medium"
-            >
-            <Plus className="w-4 h-4" />
-            <span>New Document</span>
-            </button>
+            {!isArchiveView && (
+                <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm w-full sm:w-auto text-sm font-medium"
+                >
+                <Plus className="w-4 h-4" />
+                <span>New Document</span>
+                </button>
+            )}
         </div>
       </div>
 
@@ -312,31 +310,29 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 />
             </div>
 
-            {/* Status Filter Dropdown */}
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
-                <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
-                >
-                    <option value="ALL">All Statuses</option>
-                    <option value={DocStatus.INCOMING}>Incoming</option>
-                    <option value={DocStatus.PROCESSING}>Processing</option>
-                    <option value={DocStatus.RETURNED}>Returned</option>
-                    <option value={DocStatus.COMPLETED}>Completed</option>
-                </select>
-            </div>
+            {/* Status Filter Dropdown - Only show if NOT in Archive View */}
+            {!isArchiveView && (
+                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                    <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
+                    >
+                        <option value="ALL">All Statuses</option>
+                        <option value={DocStatus.INCOMING}>Incoming</option>
+                        <option value={DocStatus.PROCESSING}>Processing</option>
+                        <option value={DocStatus.RETURNED}>Returned</option>
+                        <option value={DocStatus.COMPLETED}>Completed</option>
+                    </select>
+                </div>
+            )}
         </div>
-
         <div className="divide-y divide-gray-700">
           {filteredDocs.length > 0 ? (
             filteredDocs.map(doc => {
-              // Check if the document was returned
               const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
               const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
-
-              // Check if document WAS returned in its history (for completed docs)
               const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
 
               return (
@@ -346,8 +342,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 className="p-4 hover:bg-gray-700 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group"
               >
                 <div className="flex items-start space-x-4">
-                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
-                    <FileText className="w-6 h-6" />
+                  <div className={`p-3 rounded-lg hidden sm:block group-hover:bg-opacity-80 transition-colors ${
+                      doc.status === DocStatus.ARCHIVED ? 'bg-gray-700 text-gray-400' :
+                      doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/30 text-red-400' : 
+                      'bg-blue-900/30 text-blue-400'
+                    }`}>
+                    {doc.status === DocStatus.ARCHIVED ? <Archive className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
@@ -370,15 +370,14 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     </div>
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
                           doc.priority === 'Highly Technical Transaction' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
                           doc.priority === 'Complex Transaction' ? 'bg-orange-900/50 text-orange-300 border border-orange-800' : 'bg-green-900/50 text-green-300 border border-green-800'
                       }`}>
                           {doc.priority}
                       </span>
 
-                      {/* Communication Type Badge with Effects */}
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
                           doc.communicationType === 'Urgent' ? 'bg-red-600 text-white border border-red-400 animate-pulse font-bold shadow-red-500/50 shadow-lg' : 
                           doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
                           'bg-gray-700/50 text-gray-300 border border-gray-600'
@@ -386,9 +385,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                           {doc.communicationType || 'Regular'}
                       </span>
 
-                      {/* Additional RETURNED badge for completed documents that were returned */}
                       {doc.status === DocStatus.COMPLETED && wasReturned && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
                               RETURNED
                           </span>
                       )}
@@ -407,8 +405,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <History className="w-5 h-5" />
                     </button>
-                    {/* Archive Action - Only for Completed Docs */}
-                    {doc.status === DocStatus.COMPLETED && (
+                    {/* Archive Action - Only for Completed Docs AND NOT already in Archive View */}
+                    {!isArchiveView && doc.status === DocStatus.COMPLETED && (
                         <button
                             onClick={(e) => handleArchive(e, doc)}
                             className="text-gray-400 hover:text-green-400 p-1 rounded-full hover:bg-gray-600 transition-colors"
@@ -433,11 +431,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
           ) : (
               <div className="p-20 text-center">
                   <div className="bg-gray-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                      <FileText className="w-8 h-8 text-gray-500" />
+                      {isArchiveView ? <Archive className="w-8 h-8 text-gray-500" /> : <FileText className="w-8 h-8 text-gray-500" />}
                   </div>
                   <h3 className="text-gray-200 font-medium">No documents found</h3>
                   <p className="text-gray-500 text-sm mt-1">
                     {searchTerm ? "No results match your search." : 
+                     isArchiveView ? "No archived documents found." :
                      statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} documents found.` :
                      "You don't have any associated documents yet."}
                   </p>
