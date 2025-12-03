@@ -11,8 +11,8 @@ export enum DocStatus {
   OUTGOING = 'OUTGOING',
   PROCESSING = 'PROCESSING',
   COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED',
-  RETURNED = 'RETURNED'
+  RETURNED = 'RETURNED',
+  ARCHIVED = 'ARCHIVED'
 }
 
 export interface Department {

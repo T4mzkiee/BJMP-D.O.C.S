@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
@@ -67,10 +68,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
+    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
   ];
 
-  // Filter out archived documents for the breakdown
-  const activeDocs = documents.filter(d => d.status !== DocStatus.ARCHIVED);
+  // Filter out system checkpoints for the breakdown
+  const activeDocs = documents.filter(d => d.title !== '_SYSTEM_CHECKPOINT_');
 
   const priorityData = [
     { name: 'Highly Technical', value: activeDocs.filter(d => d.priority === 'Highly Technical Transaction').length },
@@ -481,11 +483,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-blue-600" />
           <StatCard title="Returned" value={statusCounts[1].value} icon={Undo2} color="bg-red-500" />
           <StatCard title="Processing" value={statusCounts[2].value} icon={FileClock} color="bg-yellow-500" />
           <StatCard title="Completed" value={statusCounts[3].value} icon={CheckCircle} color="bg-green-500" />
+          <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-500" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -761,7 +764,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                             {activeTab === 'incoming' ? resolveName(doc.createdBy) : resolveName(doc.assignedTo)}
                                         </span>
                                     </span>
-                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
                                         doc.priority === 'Highly Technical Transaction' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
                                         doc.priority === 'Complex Transaction' ? 'bg-orange-900/50 text-orange-300 border border-orange-800' : 'bg-green-900/50 text-green-300 border border-green-800'
                                     }`}>
@@ -769,7 +772,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     </span>
 
                                     {/* Communication Type Badge with Effects */}
-                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
                                         doc.communicationType === 'Urgent' ? 'bg-red-600 text-white border border-red-400 animate-pulse font-bold shadow-red-500/50 shadow-lg' : 
                                         doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
                                         'bg-gray-700/50 text-gray-300 border border-gray-600'
@@ -778,7 +781,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     </span>
                                     
                                     {doc.status === DocStatus.COMPLETED && wasReturned && (
-                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
                                             RETURNED
                                         </span>
                                     )}
