@@ -486,10 +486,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        // FULL WIPE: Log and Documents, including Checkpoints
-        await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        
+        const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) throw error;
         setDocuments([]);
         setClearDataModal(false);
         setClearConfirmationText('');
@@ -828,7 +826,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     </h3>
                                     <span className="text-xs text-gray-500 font-mono">{doc.referenceNumber}</span>
                                 </div>
-                                <p className="text-sm text-gray-400 mt-1 line-clamp-1">{doc.description}</p>
+                                <p className="text-sm text-gray-400 mt-1 line-clamp-1 break-all text-justify">{doc.description}</p>
                                 <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2">
                                     {doc.remarks && (
                                     <p className={`text-xs italic ${isReturned ? 'text-red-400 font-medium' : 'text-gray-500'}`}>
