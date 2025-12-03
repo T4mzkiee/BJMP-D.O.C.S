@@ -69,7 +69,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
-    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
   ];
 
   // Filter out system checkpoints and archived docs for the breakdown
@@ -79,6 +78,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Highly Technical', value: activeDocs.filter(d => d.priority === 'Highly Technical Transaction').length },
     { name: 'Complex', value: activeDocs.filter(d => d.priority === 'Complex Transaction').length },
     { name: 'Simple', value: activeDocs.filter(d => d.priority === 'Simple Transaction').length },
+  ];
+
+  const communicationData = [
+    { name: 'Urgent', value: activeDocs.filter(d => d.communicationType === 'Urgent').length, color: '#EF4444' },
+    { name: 'Priority', value: activeDocs.filter(d => d.communicationType === 'Priority').length, color: '#F59E0B' },
+    { name: 'Regular', value: activeDocs.filter(d => d.communicationType === 'Regular' || !d.communicationType).length, color: '#3B82F6' },
   ];
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
@@ -528,15 +533,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-blue-600" />
           <StatCard title="Returned" value={statusCounts[1].value} icon={Undo2} color="bg-red-500" />
           <StatCard title="Processing" value={statusCounts[2].value} icon={FileClock} color="bg-yellow-500" />
           <StatCard title="Completed" value={statusCounts[3].value} icon={CheckCircle} color="bg-green-500" />
-          <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-500" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Charts Section - 2 Columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Bar Chart (Full Width in Grid) */}
           <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 lg:col-span-2">
             <h3 className="text-lg font-bold text-white mb-4">Document Status Distribution</h3>
             <div className="h-64" style={{ minHeight: '250px', width: '100%' }}>
@@ -556,6 +562,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </div>
           </div>
 
+          {/* Classification Pie Chart */}
           <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex flex-col">
             <h3 className="text-lg font-bold text-white mb-4">Classification Breakdown</h3>
             <div className="flex-1 flex flex-col">
@@ -584,6 +591,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                     <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div> Highly Technical</div>
                     <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div> Complex</div>
                     <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Simple</div>
+                </div>
+            </div>
+          </div>
+
+          {/* Communication Type Pie Chart */}
+          <div className="bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-700 flex flex-col">
+            <h3 className="text-lg font-bold text-white mb-4">Communication Breakdown</h3>
+            <div className="flex-1 flex flex-col">
+                <div className="h-48 w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                    <Pie
+                        data={communicationData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                    >
+                        {communicationData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                    </Pie>
+                    <Tooltip contentStyle={{borderRadius: '8px', backgroundColor: '#1F2937', border: '1px solid #374151', color: '#F3F4F6'}} />
+                    </PieChart>
+                </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col justify-center space-y-2 mt-4">
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div> Urgent</div>
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div> Priority</div>
+                    <div className="flex items-center text-xs text-gray-400"><div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div> Regular</div>
                 </div>
             </div>
           </div>
