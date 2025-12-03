@@ -69,6 +69,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
+    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
   ];
 
   // Filter out system checkpoints and archived docs for the breakdown
@@ -238,18 +239,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
     let filtered = baseDocs;
 
-    // We do NOT use statusFilter here for 'ALL' because we removed the dropdown for Outgoing tab is handled in UI, 
-    // but logic-wise we should still filter standard stuff.
-    // However, if we want to show 'Completed' in Outgoing ONLY via filter, we need the dropdown.
-    // The request was to REMOVE the filter dropdown in Outgoing tab. 
-    // So we just default to hiding Archived and Completed.
-    filtered = baseDocs.filter(d => 
-        d.status !== DocStatus.ARCHIVED && 
-        d.status !== DocStatus.COMPLETED
-    );
+    if (statusFilter === 'ALL') {
+        // Default View: Show Active Only (Exclude Archived AND Completed)
+        filtered = baseDocs.filter(d => 
+            d.status !== DocStatus.ARCHIVED && 
+            d.status !== DocStatus.COMPLETED
+        );
+    } else {
+        // Specific Filter
+        filtered = baseDocs.filter(d => d.status === statusFilter);
+    }
 
     return sortDocuments(filtered);
-  }, [documents, currentUser.department, users]); 
+  }, [documents, currentUser.department, users, statusFilter]);
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;
 
@@ -526,11 +528,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-blue-600" />
           <StatCard title="Returned" value={statusCounts[1].value} icon={Undo2} color="bg-red-500" />
           <StatCard title="Processing" value={statusCounts[2].value} icon={FileClock} color="bg-yellow-500" />
           <StatCard title="Completed" value={statusCounts[3].value} icon={CheckCircle} color="bg-green-500" />
+          <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-500" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
