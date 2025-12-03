@@ -12,6 +12,7 @@ interface SidebarProps {
   isCollapsed: boolean; // Desktop collapsed state
   onToggleCollapse: () => void; // Toggle desktop collapse
   onCloseMobile: () => void; // Close mobile drawer
+  incomingCount?: number; // New prop for notifications
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -22,7 +23,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   isCollapsed,
   onToggleCollapse,
-  onCloseMobile
+  onCloseMobile,
+  incomingCount = 0
 }) => {
   
   const navItemClass = (page: Page) =>
@@ -76,8 +78,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={navItemClass('DASHBOARD')}
             title={isCollapsed ? "Dashboard" : ""}
           >
-            <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
-            {!isCollapsed && <span className="ml-3 font-medium">Dashboard</span>}
+            <div className="relative">
+                <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+                {isCollapsed && incomingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-gray-900"></span>
+                )}
+            </div>
+            {!isCollapsed && (
+                <>
+                    <span className="ml-3 font-medium flex-1 text-left">Dashboard</span>
+                    {incomingCount > 0 && (
+                        <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                            {incomingCount}
+                        </span>
+                    )}
+                </>
+            )}
           </button>
 
           <button 

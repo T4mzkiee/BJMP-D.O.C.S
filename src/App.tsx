@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { AuthState, Page, Role, User, DocumentTrack, Department } from './types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { AuthState, Page, Role, User, DocumentTrack, Department, DocStatus } from './types';
 import { INITIAL_USERS } from './constants';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -119,7 +118,7 @@ const App: React.FC = () => {
         } else if (payload.eventType === 'UPDATE') {
           setDocuments(prev => prev.map(doc => {
             if (doc.id === payload.new.id) {
-              return mapDocFromDB(payload.new, doc.logs); 
+              return { ...mapDocFromDB(payload.new, []), logs: doc.logs }; 
             }
             return doc;
           }));
@@ -156,10 +155,7 @@ const App: React.FC = () => {
              return [...prev, newUser];
           });
         } else if (payload.eventType === 'UPDATE') {
-          // If the logged in user's isLoggedIn status changes to false, log them out locally
-          // This handles the "Force Logout" scenario from another device
           const updatedUser = mapUserFromDB(payload.new);
-          
           setUsers(prev => prev.map(u => u.id === payload.new.id ? updatedUser : u));
         } else if (payload.eventType === 'DELETE') {
           setUsers(prev => prev.filter(u => u.id !== payload.old.id));
@@ -193,12 +189,8 @@ const App: React.FC = () => {
     if (isJustLoggedIn.current) return;
 
     if (auth.isAuthenticated && auth.currentUser) {
-        // Find the most recent version of the current user in the user list
-        // This is updated by the realtime listener above
         const userInState = users.find(u => u.id === auth.currentUser!.id);
         
-        // Only trigger logout if we explicitly see isLoggedIn === false
-        // The handleLogin function now pre-sets this to true to avoid initial race conditions
         if (userInState && userInState.isLoggedIn === false) {
             alert("You have been logged out remotely.");
             handleLogout(true); 
@@ -208,14 +200,13 @@ const App: React.FC = () => {
 
 
   const handleLogin = async (user: User) => {
-    // 1. Set Grace Period Flag to prevent the "Force Logout" signal from killing this session
+    // 1. Set Grace Period Flag
     isJustLoggedIn.current = true;
     setTimeout(() => {
         isJustLoggedIn.current = false;
     }, 2000); // 2 seconds immunity
 
-    // 2. Optimistically update local Users state to "Logged In"
-    // This prevents the Security Monitor (useEffect above) from kicking us out immediately
+    // 2. Optimistically update local Users state
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isLoggedIn: true } : u));
 
     const userWithAuth = { ...user, isLoggedIn: true };
@@ -248,162 +239,135 @@ const App: React.FC = () => {
 
     // --- 2. BACKGROUND DB UPDATE (NON-BLOCKING) ---
     if (!skipDbUpdate && userId) {
-        // Fire-and-forget Promise (no await, no UI blocking)
-        supabase.from('users').update({ is_logged_in: false }).eq('id', userId)
-        .catch(err => console.error("Background logout DB update failed:", err));
+        // Fire-and-forget Promise
+        supabase.from('users').update({ is_logged_in: false }).eq('id', userId).then(({ error }) => {
+            if (error) console.error("Error logging out from DB:", error);
+        });
     }
   };
 
-  // --- IDLE TIMER LOGIC ---
-  useEffect(() => {
-    // Only activate if user is authenticated
-    if (!auth.isAuthenticated) return;
-
-    const IDLE_LIMIT = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-    const resetIdleTimer = () => {
-      if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-      }
-
-      logoutTimerRef.current = setTimeout(() => {
-        alert("Session Expired: You have been logged out due to inactivity (5 minutes).");
-        handleLogout();
-      }, IDLE_LIMIT);
-    };
-
-    // Events to detect activity
-    const activityEvents = [
-      'mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'
-    ];
-
-    // Attach listeners
-    activityEvents.forEach(event => {
-      window.addEventListener(event, resetIdleTimer);
-    });
-
-    // Start timer immediately
-    resetIdleTimer();
-
-    // Cleanup listeners on unmount or logout
-    return () => {
-      if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-      }
-      activityEvents.forEach(event => {
-        window.removeEventListener(event, resetIdleTimer);
-      });
-    };
-  }, [auth.isAuthenticated]);
-
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
+    setIsMobileSidebarOpen(false); // Close sidebar on nav on mobile
   };
+
+  const incomingCount = useMemo(() => {
+    if (!auth.currentUser) return 0;
+    return documents.filter(d => 
+        d.assignedTo === auth.currentUser!.department && 
+        d.status === DocStatus.INCOMING
+    ).length;
+  }, [documents, auth.currentUser]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
         <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <h2 className="text-xl font-bold">Connecting to BJMP Cloud...</h2>
-            <p className="text-gray-400">Syncing data from secure database</p>
+            <h2 className="text-xl font-bold">Initializing System...</h2>
+            <p className="text-gray-400">Loading modules and security protocols</p>
         </div>
       </div>
     );
   }
 
-  if (!auth.isAuthenticated) {
+  // Render Logic
+  if (!auth.isAuthenticated || currentPage === 'LOGIN') {
     return <Login onLogin={handleLogin} users={users} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col md:flex-row">
-      
-      {/* Mobile Header */}
-      <div className="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
-        <div className="flex items-center space-x-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg">
-                <FileText className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-bold text-white tracking-tight">BJMP8 D.O.C.S</span>
-        </div>
-        <button 
-            onClick={() => setIsMobileSidebarOpen(true)}
-            className="text-gray-300 hover:text-white focus:outline-none"
-        >
-            <Menu className="w-6 h-6" />
-        </button>
-      </div>
-
+    <div className="min-h-screen bg-gray-900 flex">
       {/* Sidebar Navigation */}
       <Sidebar 
         currentPage={currentPage} 
         user={auth.currentUser!} 
         onNavigate={handleNavigate} 
-        onLogout={() => handleLogout()} // Normal logout triggers DB update
+        onLogout={() => handleLogout()}
         isOpen={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        incomingCount={incomingCount}
       />
 
       {/* Main Content Area */}
       <main 
-        className={`flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen transition-all duration-300 ease-in-out
-            ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}
+        className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-hidden flex flex-col
+          ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}
         `}
       >
-        <div className="relative z-10 max-w-7xl mx-auto">
-          {currentPage === 'DASHBOARD' && (
-            <Dashboard 
-              documents={documents} 
-              setDocuments={setDocuments} 
-              users={users} 
-              setUsers={setUsers}
-              departments={departments}
-              currentUser={auth.currentUser!} 
-            />
-          )}
-          
-          {currentPage === 'USERS' && (
-             auth.currentUser?.role === Role.ADMIN ? (
-                <UsersPage users={users} setUsers={setUsers} departments={departments} currentUser={auth.currentUser} />
-             ) : (
-                <div className="text-center py-20">
-                    <h2 className="text-2xl font-bold text-gray-500">Access Denied</h2>
-                    <p className="text-gray-600">You do not have permission to view this page.</p>
-                </div>
-             )
-          )}
-          
-          {currentPage === 'DOCUMENTS' && (
-            <DocumentsPage 
-              documents={documents} 
-              setDocuments={setDocuments} 
-              currentUser={auth.currentUser!} 
-              users={users}
-              departments={departments}
-            />
-          )}
+        {/* Mobile Header */}
+        <div className="md:hidden bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+                <button onClick={() => setIsMobileSidebarOpen(true)} className="text-gray-400 hover:text-white">
+                    <Menu className="w-6 h-6" />
+                </button>
+                <span className="font-bold text-white text-lg flex items-center">
+                    <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                    BJMP8 D.O.C.S
+                </span>
+            </div>
+            {incomingCount > 0 && (
+                 <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                    {incomingCount} Incoming
+                </span>
+            )}
+        </div>
 
-          {currentPage === 'ARCHIVES' && (
-            <DocumentsPage 
-              documents={documents} 
-              setDocuments={setDocuments} 
-              currentUser={auth.currentUser!} 
-              users={users}
-              departments={departments}
-              isArchiveView={true}
-            />
-          )}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            {currentPage === 'DASHBOARD' && (
+              <Dashboard 
+                documents={documents} 
+                setDocuments={setDocuments} 
+                users={users} 
+                setUsers={setUsers}
+                departments={departments}
+                currentUser={auth.currentUser!} 
+              />
+            )}
+            
+            {currentPage === 'USERS' && (
+               auth.currentUser?.role === Role.ADMIN ? (
+                  <UsersPage users={users} setUsers={setUsers} currentUser={auth.currentUser!} departments={departments} />
+               ) : (
+                  <div className="text-center py-20 animate-fade-in">
+                      <h2 className="text-2xl font-bold text-gray-500">Access Denied</h2>
+                      <p className="text-gray-600 mt-2">You do not have permission to view this page.</p>
+                  </div>
+               )
+            )}
+            
+            {currentPage === 'DOCUMENTS' && (
+              <DocumentsPage 
+                documents={documents} 
+                setDocuments={setDocuments} 
+                currentUser={auth.currentUser!} 
+                users={users}
+                departments={departments}
+              />
+            )}
 
-          {currentPage === 'ACCOUNT' && (
-            <AccountPage 
-              users={users} 
-              setUsers={setUsers} 
-              currentUser={auth.currentUser!} 
-            />
-          )}
+            {currentPage === 'ARCHIVES' && (
+              <DocumentsPage 
+                documents={documents} 
+                setDocuments={setDocuments} 
+                currentUser={auth.currentUser!} 
+                users={users}
+                departments={departments}
+                isArchiveView={true}
+              />
+            )}
+
+            {currentPage === 'ACCOUNT' && (
+              <AccountPage 
+                users={users} 
+                setUsers={setUsers} 
+                currentUser={auth.currentUser!} 
+              />
+            )}
+          </div>
         </div>
       </main>
     </div>
