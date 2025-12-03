@@ -1,9 +1,7 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2, Download } from 'lucide-react';
+import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2, Download, Filter } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -26,6 +24,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, users, setUsers, departments, currentUser }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
     isOpen: false,
     controlNumber: '',
@@ -68,7 +67,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Returned', value: returnedDocsCount, color: '#EF4444' },
     { name: 'Processing', value: documents.filter(d => d.status === DocStatus.PROCESSING).length, color: '#F59E0B' },
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
-    { name: 'Archived', value: documents.filter(d => d.status === DocStatus.ARCHIVED).length, color: '#374151' },
   ];
 
   // Filter out system checkpoints for the breakdown
@@ -187,17 +185,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   };
 
   const incomingDocs = useMemo(() => {
-    const filtered = documents.filter(d => 
+    // 1. Base Filter: Assigned to Dept & Not Checkpoint
+    const baseDocs = documents.filter(d => 
       d.assignedTo === currentUser.department &&
-      d.status !== DocStatus.COMPLETED &&
-      d.status !== DocStatus.RETURNED &&
       d.title !== '_SYSTEM_CHECKPOINT_'
     );
+
+    let filtered = baseDocs;
+
+    if (statusFilter === 'ALL') {
+        // Default View: Show Active Only (Exclude Completed, Returned, Archived)
+        filtered = baseDocs.filter(d => 
+            d.status !== DocStatus.COMPLETED &&
+            d.status !== DocStatus.RETURNED &&
+            d.status !== DocStatus.ARCHIVED
+        );
+    } else {
+        // Specific Filter: Show only matching status
+        filtered = baseDocs.filter(d => d.status === statusFilter);
+    }
+
     return sortDocuments(filtered);
-  }, [documents, currentUser.department]);
+  }, [documents, currentUser.department, statusFilter]);
 
   const outgoingDocs = useMemo(() => {
-    const filtered = documents.filter(d => {
+    // 1. Base Filter: Created/Forwarded by Dept & Not Currently With Dept & Not Checkpoint
+    const baseDocs = documents.filter(d => {
       if (d.title === '_SYSTEM_CHECKPOINT_') return false;
 
       const creator = users.find(u => u.id === d.createdBy);
@@ -211,8 +224,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
       return (createdByMyDept || forwardedByMyDept) && !currentlyWithMyDept;
     });
+
+    let filtered = baseDocs;
+
+    if (statusFilter === 'ALL') {
+        // Default View: Show Active Only (Exclude Archived)
+        filtered = baseDocs.filter(d => d.status !== DocStatus.ARCHIVED);
+    } else {
+        // Specific Filter
+        filtered = baseDocs.filter(d => d.status === statusFilter);
+    }
+
     return sortDocuments(filtered);
-  }, [documents, currentUser.department, users]);
+  }, [documents, currentUser.department, users, statusFilter]);
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;
 
@@ -483,12 +507,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard title="Incoming" value={statusCounts[0].value} icon={Inbox} color="bg-blue-600" />
           <StatCard title="Returned" value={statusCounts[1].value} icon={Undo2} color="bg-red-500" />
           <StatCard title="Processing" value={statusCounts[2].value} icon={FileClock} color="bg-yellow-500" />
           <StatCard title="Completed" value={statusCounts[3].value} icon={CheckCircle} color="bg-green-500" />
-          <StatCard title="Archived" value={statusCounts[4].value} icon={Archive} color="bg-gray-500" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -687,13 +710,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
              </p>
            </div>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Document</span>
-        </button>
+        <div className="flex space-x-3">
+            <div className="relative">
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none pl-8"
+                >
+                    <option value="ALL">All Active</option>
+                    <option value={DocStatus.INCOMING}>Incoming</option>
+                    <option value={DocStatus.PROCESSING}>Processing</option>
+                    <option value={DocStatus.RETURNED}>Returned</option>
+                    <option value={DocStatus.COMPLETED}>Completed</option>
+                    <option value={DocStatus.ARCHIVED}>Archived</option>
+                </select>
+                <Filter className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5 pointer-events-none" />
+            </div>
+            <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-gray-600"
+            >
+            <Plus className="w-4 h-4" />
+            <span>New Document</span>
+            </button>
+        </div>
       </div>
 
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden min-h-[500px]">
@@ -827,9 +867,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     doc.status === DocStatus.RETURNED || isReturned ? 'bg-red-900/50 text-red-300 border-red-800' : 
                                     doc.status === DocStatus.PROCESSING ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
                                     doc.status === DocStatus.OUTGOING ? 'bg-orange-900/50 text-orange-300 border-orange-800' : 
+                                    doc.status === DocStatus.ARCHIVED ? 'bg-gray-700 text-gray-400 border-gray-600' :
                                     'bg-blue-900/50 text-blue-300 border-blue-800'
                                 }`}>
-                                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : (doc.status === DocStatus.RETURNED || isReturned ? 'RETURNED' : doc.status)}
+                                    {doc.status === DocStatus.COMPLETED ? 'DONE PROCESS' : 
+                                     doc.status === DocStatus.RETURNED || isReturned ? 'RETURNED' : 
+                                     doc.status === DocStatus.ARCHIVED ? 'ARCHIVED' :
+                                     doc.status}
                                 </span>
                             )}
                         </div>
@@ -841,7 +885,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                         <Inbox className="w-8 h-8 text-gray-400" />
                     </div>
                     <h3 className="text-gray-200 font-medium">No documents found</h3>
-                    <p className="text-gray-500 text-sm mt-1">You have no {activeTab} documents at the moment.</p>
+                    <p className="text-gray-500 text-sm mt-1">
+                        {statusFilter !== 'ALL' 
+                            ? `No ${statusFilter.toLowerCase().replace('_', ' ')} documents found.` 
+                            : `You have no ${activeTab} documents at the moment.`}
+                    </p>
                 </div>
             )}
         </div>
