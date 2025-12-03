@@ -109,8 +109,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         const prefixMap = new Map<string, { id: string, series: number }>();
 
         documents.forEach(doc => {
-            // Check if it's already a checkpoint - we don't need to add it to prefixMap, 
-            // but we MUST ensure we don't delete it later.
+            // Check if it's already a checkpoint
             if (doc.title === '_SYSTEM_CHECKPOINT_') return;
 
             // Logic matches GenerateControlNumber: Ends in 3 digits
@@ -337,6 +336,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <option value="ALL">All Statuses</option>
                         <option value={DocStatus.INCOMING}>Incoming</option>
+                        {/* Removed Outgoing from filter list as requested */}
                         <option value={DocStatus.PROCESSING}>Processing</option>
                         <option value={DocStatus.RETURNED}>Returned</option>
                         <option value={DocStatus.COMPLETED}>Completed</option>
@@ -374,10 +374,11 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                   </div>
                   <div>
                     <div className="flex items-center space-x-2">
-                      <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors">{doc.title}</h3>
-                      <span className="text-xs text-gray-500 font-mono">{doc.referenceNumber}</span>
+                      <h3 className="text-sm font-semibold text-gray-100 group-hover:text-blue-400 transition-colors break-all">{doc.title}</h3>
+                      <span className="text-xs text-gray-500 font-mono whitespace-nowrap">{doc.referenceNumber}</span>
                     </div>
-                    <p className="text-sm text-gray-400 mt-1 line-clamp-1">{doc.description}</p>
+                    {/* Added break-all and text-justify for responsive long text */}
+                    <p className="text-sm text-gray-400 mt-1 line-clamp-1 break-all text-justify">{doc.description}</p>
                     <div className="flex flex-col gap-1 mt-1">
                         {doc.summary && (
                             <p className="text-xs text-purple-400 flex items-center">
@@ -393,14 +394,14 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     </div>
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
+                      <span className={`text-[10px] font-medium p-2 rounded-lg ${
                           doc.priority === 'Highly Technical Transaction' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
                           doc.priority === 'Complex Transaction' ? 'bg-orange-900/50 text-orange-300 border border-orange-800' : 'bg-green-900/50 text-green-300 border border-green-800'
                       }`}>
                           {doc.priority}
                       </span>
 
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
+                      <span className={`text-[10px] font-medium p-2 rounded-lg ${
                           doc.communicationType === 'Urgent' ? 'bg-red-600 text-white border border-red-400 animate-pulse font-bold shadow-red-500/50 shadow-lg' : 
                           doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
                           'bg-gray-700/50 text-gray-300 border border-gray-600'
@@ -409,7 +410,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                       </span>
 
                       {doc.status === DocStatus.COMPLETED && wasReturned && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
+                          <span className="text-[10px] font-medium p-2 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
                               RETURNED
                           </span>
                       )}
