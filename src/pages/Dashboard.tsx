@@ -793,27 +793,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                 <div className="flex flex-wrap items-center gap-2 justify-end">
                                     <button 
                                         onClick={(e) => initiateReturn(e, doc)}
-                                        className="flex items-center space-x-1 px-3 py-1.5 bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-800/50 rounded text-xs font-medium transition-colors"
+                                        className="p-2 bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-800/50 rounded-lg transition-colors"
                                         title="Return to originating department"
+                                        aria-label="Return"
                                     >
-                                        <Undo2 className="w-3 h-3" />
-                                        <span>Return</span>
+                                        <Undo2 className="w-5 h-5" />
                                     </button>
                                     <button 
                                         onClick={(e) => initiateForward(e, doc)}
-                                        className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-900/40 text-indigo-300 hover:bg-indigo-900/60 border border-indigo-800/50 rounded text-xs font-medium transition-colors"
+                                        className="p-2 bg-indigo-900/40 text-indigo-300 hover:bg-indigo-900/60 border border-indigo-800/50 rounded-lg transition-colors"
                                         title="Forward to another office"
+                                        aria-label="Forward"
                                     >
-                                        <Send className="w-3 h-3" />
-                                        <span>Forward</span>
+                                        <Send className="w-5 h-5" />
                                     </button>
                                     <button 
                                         onClick={(e) => handleMarkAsDone(e, doc)}
-                                        className="flex items-center space-x-1 px-3 py-1.5 bg-green-900/40 text-green-300 hover:bg-green-900/60 border border-green-800/50 rounded text-xs font-medium transition-colors"
+                                        className="p-2 bg-green-900/40 text-green-300 hover:bg-green-900/60 border border-green-800/50 rounded-lg transition-colors"
                                         title="Mark as Completed"
+                                        aria-label="Done"
                                     >
-                                        <CheckSquare className="w-3 h-3" />
-                                        <span>Done</span>
+                                        <CheckSquare className="w-5 h-5" />
                                     </button>
                                 </div>
                             )}
