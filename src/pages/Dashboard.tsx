@@ -70,8 +70,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
   ];
 
-  // Filter out system checkpoints for the breakdown
-  const activeDocs = documents.filter(d => d.title !== '_SYSTEM_CHECKPOINT_');
+  // Filter out system checkpoints and archived docs for the breakdown
+  const activeDocs = documents.filter(d => d.title !== '_SYSTEM_CHECKPOINT_' && d.status !== DocStatus.ARCHIVED);
 
   const priorityData = [
     { name: 'Highly Technical', value: activeDocs.filter(d => d.priority === 'Highly Technical Transaction').length },
@@ -465,17 +465,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        // Only delete documents that are NOT checkpoints
-        const { error } = await supabase.from('documents').delete().neq('title', '_SYSTEM_CHECKPOINT_');
-        if (error) throw error;
-        
-        // Also wipe logs
+        // 1. Delete ALL Logs
         await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
-        setDocuments(prev => prev.filter(d => d.title === '_SYSTEM_CHECKPOINT_'));
+        // 2. Delete ALL Documents (Including Checkpoints)
+        const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) throw error;
+
+        setDocuments([]);
         setClearDataModal(false);
         setClearConfirmationText('');
-        alert("System data has been successfully wiped. Checkpoints preserved.");
+        alert("System data has been successfully wiped. Control numbers reset.");
     } catch (error) {
         console.error("Error clearing data:", error);
         alert("Failed to clear data. Please check console.");
@@ -725,6 +725,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 >
                     <option value="ALL">All Active</option>
                     <option value={DocStatus.INCOMING}>Incoming</option>
+                    {/* Removed Outgoing from filter list as requested */}
                     <option value={DocStatus.PROCESSING}>Processing</option>
                     <option value={DocStatus.RETURNED}>Returned</option>
                     <option value={DocStatus.COMPLETED}>Completed</option>
