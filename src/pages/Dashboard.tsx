@@ -69,7 +69,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     { name: 'Completed', value: documents.filter(d => d.status === DocStatus.COMPLETED).length, color: '#10B981' },
   ];
 
-  // Filter out archived documents for the breakdown to only show active system load
+  // Filter out archived documents for the breakdown
   const activeDocs = documents.filter(d => d.status !== DocStatus.ARCHIVED);
 
   const priorityData = [
@@ -134,8 +134,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     documents.forEach(doc => {
       const row = [
         doc.referenceNumber,
-        `"${doc.title.replace(/"/g, '""')}"`, // Escape quotes
-        `"${doc.description.replace(/"/g, '""').replace(/\n/g, ' ')}"`, // Escape quotes and newlines
+        `"${doc.title.replace(/"/g, '""')}"`,
+        `"${doc.description.replace(/"/g, '""').replace(/\n/g, ' ')}"`,
         doc.status,
         doc.priority,
         doc.communicationType || 'Regular',
@@ -189,14 +189,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
       d.assignedTo === currentUser.department &&
       d.status !== DocStatus.COMPLETED &&
       d.status !== DocStatus.RETURNED &&
-      d.title !== '_SYSTEM_CHECKPOINT_' // Filter out system checkpoints
+      d.title !== '_SYSTEM_CHECKPOINT_'
     );
     return sortDocuments(filtered);
   }, [documents, currentUser.department]);
 
   const outgoingDocs = useMemo(() => {
     const filtered = documents.filter(d => {
-      if (d.title === '_SYSTEM_CHECKPOINT_') return false; // Filter out system checkpoints
+      if (d.title === '_SYSTEM_CHECKPOINT_') return false;
 
       const creator = users.find(u => u.id === d.createdBy);
       const createdByMyDept = creator?.department === currentUser.department;
@@ -701,7 +701,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'incoming' 
                     ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                 }`}
             >
                 <ArrowDownLeft className="w-4 h-4" />
@@ -712,7 +712,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'outgoing' 
                     ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                 }`}
             >
                 <ArrowUpRight className="w-4 h-4" />
@@ -732,7 +732,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                     <div 
                         key={doc.id} 
                         onClick={() => handleDocClick(doc)}
-                        className={`p-4 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-gray-700 active:bg-gray-600`}
+                        className={`p-4 transition-colors flex flex-col xl:flex-row xl:items-center justify-between gap-4 cursor-pointer hover:bg-gray-700 active:bg-gray-600`}
                     >
                         <div className="flex items-start space-x-4 flex-1">
                             <div className={`p-3 rounded-lg hidden sm:block ${activeTab === 'incoming' ? 'bg-blue-900/30 text-blue-400' : 'bg-orange-900/30 text-orange-400'}`}>
@@ -790,7 +790,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
                         <div className="flex items-center space-x-2">
                             {activeTab === 'incoming' && doc.status === DocStatus.PROCESSING && (
-                                <div className="flex space-x-2 mr-2">
+                                <div className="flex flex-wrap items-center gap-2 justify-end">
                                     <button 
                                         onClick={(e) => initiateReturn(e, doc)}
                                         className="flex items-center space-x-1 px-3 py-1.5 bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-800/50 rounded text-xs font-medium transition-colors"
