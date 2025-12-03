@@ -229,8 +229,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     let filtered = baseDocs;
 
     if (statusFilter === 'ALL') {
-        // Default View: Show Active Only (Exclude Archived)
-        filtered = baseDocs.filter(d => d.status !== DocStatus.ARCHIVED);
+        // Default View: Show Active Only (Exclude Archived AND Completed)
+        filtered = baseDocs.filter(d => 
+            d.status !== DocStatus.ARCHIVED && 
+            d.status !== DocStatus.COMPLETED
+        );
     } else {
         // Specific Filter
         filtered = baseDocs.filter(d => d.status === statusFilter);
