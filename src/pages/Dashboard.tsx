@@ -465,10 +465,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        // 1. Delete ALL Logs
+        // 1. Delete ALL Logs (Unconditional Wipe)
         await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
-        // 2. Delete ALL Documents (Including Checkpoints)
+        // 2. Delete ALL Documents (Unconditional Wipe - Including _SYSTEM_CHECKPOINT_)
         const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (error) throw error;
 
