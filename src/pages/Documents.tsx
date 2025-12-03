@@ -192,32 +192,45 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   };
 
   const relevantDocs = useMemo(() => {
-    let filtered: DocumentTrack[] = [];
-    
     // Create a copy to avoid mutating state
     if (currentUser.role === Role.ADMIN) {
-      filtered = [...documents];
-    } else {
-      filtered = documents.filter(doc => {
-        const creator = users.find(u => u.id === doc.createdBy);
-        const isCreatedByMyDept = creator && creator.department === currentUser.department;
-        const isAssigned = doc.assignedTo === currentUser.id || doc.assignedTo === currentUser.department;
-        const hasHistory = doc.logs.some(log => log.userName === currentUser.name);
+      return [...documents];
+    } 
+    
+    // Strict Filter: Only show documents where the Originating Department matches the Current User's Department
+    return documents.filter(doc => {
+      // 1. Identify Originating Department
+      let originDept = '';
+      
+      // Try getting from Creator ID
+      const creator = users.find(u => u.id === doc.createdBy);
+      if (creator) {
+          originDept = creator.department;
+      } else {
+          // Fallback: If creator not found in active list, deduce from logs (first entry)
+          if (doc.logs && doc.logs.length > 0) {
+              const sortedLogs = [...doc.logs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              originDept = sortedLogs[0]?.department || '';
+          }
+      }
 
-        return isCreatedByMyDept || isAssigned || hasHistory;
-      });
-    }
+      // 2. Check match
+      return originDept === currentUser.department;
+    });
 
-    // --- SORTING LOGIC ---
-    // 1. Communication Type Hierarchy: Urgent > Priority > Regular
-    // 2. Date Created: Newest First
+  }, [documents, currentUser, users]);
+
+  // --- SORTING LOGIC ---
+  // 1. Communication Type Hierarchy: Urgent > Priority > Regular
+  // 2. Date Created: Newest First
+  const sortedDocs = useMemo(() => {
     const typeWeight: Record<string, number> = {
       'Urgent': 3,
       'Priority': 2,
       'Regular': 1
     };
 
-    return filtered.sort((a, b) => {
+    return [...relevantDocs].sort((a, b) => {
       const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
       const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
 
@@ -233,11 +246,10 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
 
       return dateB - dateA;
     });
-
-  }, [documents, currentUser, users]);
+  }, [relevantDocs]);
 
   // Combined Filter: Search Term + Status Filter + Hide System Checkpoints
-  const filteredDocs = relevantDocs.filter(d => {
+  const filteredDocs = sortedDocs.filter(d => {
     const matchesSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -274,7 +286,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 ? "History of all closed and archived transactions."
                 : currentUser.role === Role.ADMIN 
                     ? "Master list of all tracked files in the system." 
-                    : `Viewing documents associated with ${currentUser.department}.`
+                    : `Viewing documents originating from ${currentUser.department}.`
             }
           </p>
         </div>
@@ -325,7 +337,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <option value="ALL">All Statuses</option>
                         <option value={DocStatus.INCOMING}>Incoming</option>
-                        {/* Removed Outgoing from filter list as requested */}
                         <option value={DocStatus.PROCESSING}>Processing</option>
                         <option value={DocStatus.RETURNED}>Returned</option>
                         <option value={DocStatus.COMPLETED}>Completed</option>
