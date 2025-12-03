@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2, Download, Filter } from 'lucide-react';
+import { FileClock, CheckCircle, Inbox, Archive, Plus, FileText, ArrowUpRight, ArrowDownLeft, MousePointerClick, Send, CheckSquare, Undo2, Trash2, AlertTriangle, X, ShieldAlert, Building2, Download, Filter, Search } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -26,6 +26,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [dashboardSearchTerm, setDashboardSearchTerm] = useState(''); // New State for Search
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
     isOpen: false,
     controlNumber: '',
@@ -255,6 +256,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
   const displayDocs = activeTab === 'incoming' ? incomingDocs : outgoingDocs;
 
+  // Apply Search Filter on top of the tab logic
+  const filteredDisplayDocs = displayDocs.filter(doc => 
+    doc.title.toLowerCase().includes(dashboardSearchTerm.toLowerCase()) || 
+    doc.referenceNumber.toLowerCase().includes(dashboardSearchTerm.toLowerCase())
+  );
+
   const resolveName = (idOrName: string) => {
     const user = users.find(u => u.id === idOrName);
     return user ? user.name : idOrName;
@@ -479,8 +486,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
     }
     setIsClearing(true);
     try {
-        const { error } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        if (error) throw error;
+        // FULL WIPE: Log and Documents, including Checkpoints
+        await supabase.from('document_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        
         setDocuments([]);
         setClearDataModal(false);
         setClearConfirmationText('');
@@ -740,7 +749,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         {/* Tabs */}
         <div className="flex border-b border-gray-700">
             <button
-                onClick={() => setActiveTab('incoming')}
+                onClick={() => { setActiveTab('incoming'); setDashboardSearchTerm(''); }}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'incoming' 
                     ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
@@ -748,10 +757,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                 }`}
             >
                 <ArrowDownLeft className="w-4 h-4" />
-                <span>Incoming ({incomingDocs.length})</span>
+                <span>Incoming</span>
+                {notificationCount > 0 && (
+                    <span className="ml-2 relative flex h-5 min-w-[20px] items-center justify-center">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-5 min-w-[20px] px-1.5 text-white text-[10px] items-center justify-center font-bold bg-red-600">
+                            {notificationCount}
+                        </span>
+                    </span>
+                )}
             </button>
             <button
-                onClick={() => setActiveTab('outgoing')}
+                onClick={() => { setActiveTab('outgoing'); setDashboardSearchTerm(''); }}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
                     activeTab === 'outgoing' 
                     ? 'border-blue-500 text-blue-400 bg-gray-700/50' 
@@ -763,10 +780,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             </button>
         </div>
 
+        {/* Dashboard Search Bar (Inside Tab Content) */}
+        <div className="p-3 border-b border-gray-700 bg-gray-900/20">
+            <div className="relative">
+                <input
+                    type="text"
+                    value={dashboardSearchTerm}
+                    onChange={(e) => setDashboardSearchTerm(e.target.value)}
+                    placeholder={`Search ${activeTab} documents...`}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+                />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                {dashboardSearchTerm && (
+                    <button 
+                        onClick={() => setDashboardSearchTerm('')}
+                        className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+        </div>
+
         {/* List Content */}
         <div className="divide-y divide-gray-700">
-            {displayDocs.length > 0 ? (
-                displayDocs.map(doc => {
+            {filteredDisplayDocs.length > 0 ? (
+                filteredDisplayDocs.map(doc => {
                     const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
                     const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
                     const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
@@ -804,7 +843,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                             {activeTab === 'incoming' ? resolveName(doc.createdBy) : resolveName(doc.assignedTo)}
                                         </span>
                                     </span>
-                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
+                                    <span className={`text-[10px] font-medium p-2 rounded-lg ${
                                         doc.priority === 'Highly Technical Transaction' ? 'bg-red-900/50 text-red-300 border border-red-800' : 
                                         doc.priority === 'Complex Transaction' ? 'bg-orange-900/50 text-orange-300 border border-orange-800' : 'bg-green-900/50 text-green-300 border border-green-800'
                                     }`}>
@@ -812,7 +851,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     </span>
 
                                     {/* Communication Type Badge with Effects */}
-                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-lg ${
+                                    <span className={`text-[10px] font-medium p-2 rounded-lg ${
                                         doc.communicationType === 'Urgent' ? 'bg-red-600 text-white border border-red-400 animate-pulse font-bold shadow-red-500/50 shadow-lg' : 
                                         doc.communicationType === 'Priority' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800 animate-pulse' : 
                                         'bg-gray-700/50 text-gray-300 border border-gray-600'
@@ -821,7 +860,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                                     </span>
                                     
                                     {doc.status === DocStatus.COMPLETED && wasReturned && (
-                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
+                                        <span className="text-[10px] font-medium p-2 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
                                             RETURNED
                                         </span>
                                     )}
@@ -886,8 +925,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
                     </div>
                     <h3 className="text-gray-200 font-medium">No documents found</h3>
                     <p className="text-gray-500 text-sm mt-1">
-                        {statusFilter !== 'ALL' 
-                            ? `No ${statusFilter.toLowerCase().replace('_', ' ')} documents found.` 
+                        {dashboardSearchTerm
+                            ? `No documents match "${dashboardSearchTerm}"` 
                             : `You have no ${activeTab} documents at the moment.`}
                     </p>
                 </div>
