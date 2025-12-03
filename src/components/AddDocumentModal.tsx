@@ -29,6 +29,9 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
     remarks: ''
   });
 
+  const MAX_DESC_LENGTH = 200;
+  const MAX_REMARKS_LENGTH = 100;
+
   // Use the passed list of offices, excluding the current user's department
   const availableDepartments = useMemo(() => {
     return departments.filter(d => d.name !== currentUser.department).map(d => d.name);
@@ -197,29 +200,41 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({ isOpen, onCl
           <div>
             <div className="flex justify-between items-center mb-1">
                 <label className="block text-sm font-medium text-gray-400">Description</label>
-                <button 
-                    onClick={handleAnalyze}
-                    disabled={!newDoc.title || !newDoc.description || isAnalyzing}
-                    className="text-xs text-purple-400 hover:text-purple-300 flex items-center font-medium disabled:opacity-50"
-                >
-                    {isAnalyzing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                    AI Auto-Fill
-                </button>
+                <div className="flex items-center space-x-3">
+                    <span className={`text-xs ${(newDoc.description?.length || 0) >= MAX_DESC_LENGTH ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
+                        {newDoc.description?.length || 0}/{MAX_DESC_LENGTH}
+                    </span>
+                    <button 
+                        onClick={handleAnalyze}
+                        disabled={!newDoc.title || !newDoc.description || isAnalyzing}
+                        className="text-xs text-purple-400 hover:text-purple-300 flex items-center font-medium disabled:opacity-50"
+                    >
+                        {isAnalyzing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                        AI Auto-Fill
+                    </button>
+                </div>
             </div>
             <textarea
               value={newDoc.description}
               onChange={e => setNewDoc({ ...newDoc, description: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-24 text-white placeholder-gray-500"
+              maxLength={MAX_DESC_LENGTH}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-24 text-white placeholder-gray-500 resize-none"
               placeholder="Enter document details..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Remarks</label>
+            <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-gray-400">Remarks</label>
+                <span className={`text-xs ${(newDoc.remarks?.length || 0) >= MAX_REMARKS_LENGTH ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
+                    {newDoc.remarks?.length || 0}/{MAX_REMARKS_LENGTH}
+                </span>
+            </div>
             <textarea
               value={newDoc.remarks}
               onChange={e => setNewDoc({ ...newDoc, remarks: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-16 text-white placeholder-gray-500"
+              maxLength={MAX_REMARKS_LENGTH}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none h-16 text-white placeholder-gray-500 resize-none"
               placeholder="Any additional notes..."
             />
           </div>
