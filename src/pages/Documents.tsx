@@ -25,8 +25,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   const [statusFilter, setStatusFilter] = useState<string>(isArchiveView ? DocStatus.ARCHIVED : 'ALL'); 
   
   // Date Filters
-  const [dateFilterType, setDateFilterType] = useState<'ALL' | 'MONTH' | 'RANGE'>('ALL');
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [dateFilterType, setDateFilterType] = useState<'ALL' | 'RANGE'>('ALL');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
   const [selectedDoc, setSelectedDoc] = useState<DocumentTrack | null>(null);
@@ -275,12 +274,7 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     let matchesDate = true;
     const docDate = new Date(d.createdAt);
     
-    if (dateFilterType === 'MONTH' && selectedMonth) {
-        const [year, month] = selectedMonth.split('-');
-        matchesDate = docDate.getFullYear() === parseInt(year) && 
-                      (docDate.getMonth() + 1) === parseInt(month);
-    } 
-    else if (dateFilterType === 'RANGE') {
+    if (dateFilterType === 'RANGE') {
         if (dateRange.start) {
             const start = new Date(dateRange.start);
             start.setHours(0, 0, 0, 0);
@@ -376,26 +370,15 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     <select
                         value={dateFilterType}
                         onChange={(e) => {
-                            setDateFilterType(e.target.value as 'ALL'|'MONTH'|'RANGE');
-                            setSelectedMonth('');
+                            setDateFilterType(e.target.value as 'ALL'|'RANGE');
                             setDateRange({ start: '', end: '' });
                         }}
                         className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-40"
                     >
                         <option value="ALL">All Dates</option>
-                        <option value="MONTH">Specific Month</option>
                         <option value="RANGE">Custom Range</option>
                     </select>
                 </div>
-
-                {dateFilterType === 'MONTH' && (
-                    <input 
-                        type="month" 
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                )}
 
                 {dateFilterType === 'RANGE' && (
                     <div className="flex items-center space-x-2 w-full sm:w-auto">
@@ -469,14 +452,14 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
                       
-                      <span className={`text-[10px] font-medium p-2 rounded-lg ${
+                      <span className={`text-[10px] font-medium ${
                           doc.priority === 'Highly Technical Transaction' ? 'text-red-400' : 
                           doc.priority === 'Complex Transaction' ? 'text-orange-400' : 'text-green-400'
                       }`}>
                           {doc.priority}
                       </span>
 
-                      <span className={`text-[10px] font-bold uppercase p-2 rounded-lg ${
+                      <span className={`text-[10px] font-bold uppercase ${
                           doc.communicationType === 'Urgent' ? 'text-red-500 animate-pulse' : 
                           doc.communicationType === 'Priority' ? 'text-yellow-500 animate-pulse' : 
                           'text-gray-500'
