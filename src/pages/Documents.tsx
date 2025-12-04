@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DocumentTrack, DocStatus, User, Role, Department } from '../types';
-import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2, Filter, Archive } from 'lucide-react';
+import { Plus, Search, FileText, MoreHorizontal, Sparkles, History, Trash2, AlertTriangle, X, ShieldAlert, Loader2, Filter, Archive, Calendar } from 'lucide-react';
 import { AddDocumentModal } from '../components/AddDocumentModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { DocumentLogsModal } from '../components/DocumentLogsModal';
@@ -20,8 +20,15 @@ interface DocsProps {
 export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, currentUser, users, departments, isArchiveView = false }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  // If isArchiveView is true, force default filter to ARCHIVED
+  
+  // Status Filter
   const [statusFilter, setStatusFilter] = useState<string>(isArchiveView ? DocStatus.ARCHIVED : 'ALL'); 
+  
+  // Date Filters
+  const [dateFilterType, setDateFilterType] = useState<'ALL' | 'MONTH' | 'RANGE'>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
   const [selectedDoc, setSelectedDoc] = useState<DocumentTrack | null>(null);
   const [successModal, setSuccessModal] = useState<{ isOpen: boolean; controlNumber: string; department: string }>({
     isOpen: false,
@@ -220,8 +227,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   }, [documents, currentUser, users]);
 
   // --- SORTING LOGIC ---
-  // 1. Communication Type Hierarchy: Urgent > Priority > Regular
-  // 2. Date Created: Newest First
   const sortedDocs = useMemo(() => {
     const typeWeight: Record<string, number> = {
       'Urgent': 3,
@@ -247,30 +252,48 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     });
   }, [relevantDocs]);
 
-  // Combined Filter: Search Term + Status Filter + Hide System Checkpoints
+  // Combined Filter: Search Term + Status Filter + Date Filter + Hide System Checkpoints
   const filteredDocs = sortedDocs.filter(d => {
     const matchesSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase());
     
     const isNotCheckpoint = d.title !== '_SYSTEM_CHECKPOINT_';
 
+    // Status Filter
     let matchesStatus = true;
-    
     if (isArchiveView) {
-        // In Archive View, STRICTLY show only ARCHIVED
         matchesStatus = d.status === DocStatus.ARCHIVED;
     } else {
-        // In Normal Document View
         if (statusFilter === 'ALL') {
-            // Show everything EXCEPT Archived (and check points)
             matchesStatus = d.status !== DocStatus.ARCHIVED;
         } else {
-            // Show specific selected status
             matchesStatus = d.status === statusFilter;
         }
     }
 
-    return matchesSearch && matchesStatus && isNotCheckpoint;
+    // Date Filter
+    let matchesDate = true;
+    const docDate = new Date(d.createdAt);
+    
+    if (dateFilterType === 'MONTH' && selectedMonth) {
+        const [year, month] = selectedMonth.split('-');
+        matchesDate = docDate.getFullYear() === parseInt(year) && 
+                      (docDate.getMonth() + 1) === parseInt(month);
+    } 
+    else if (dateFilterType === 'RANGE') {
+        if (dateRange.start) {
+            const start = new Date(dateRange.start);
+            start.setHours(0, 0, 0, 0);
+            if (docDate < start) matchesDate = false;
+        }
+        if (dateRange.end) {
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+            if (docDate > end) matchesDate = false;
+        }
+    }
+
+    return matchesSearch && matchesStatus && isNotCheckpoint && matchesDate;
   });
 
   return (
@@ -312,38 +335,90 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
       </div>
 
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
-         <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex flex-col sm:flex-row items-center gap-4">
-            {/* Search Bar */}
-            <div className="flex items-center space-x-3 bg-gray-700/50 rounded-lg px-3 py-2 flex-1 w-full border border-gray-600">
-                <Search className="w-4 h-4 text-gray-400" />
-                <input 
-                    type="text" 
-                    placeholder="Search by title or reference ID..." 
-                    className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-gray-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+         {/* Toolbar */}
+         <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex flex-col gap-4">
+            
+            {/* Row 1: Search & Status */}
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex items-center space-x-3 bg-gray-700/50 rounded-lg px-3 py-2 flex-1 w-full border border-gray-600">
+                    <Search className="w-4 h-4 text-gray-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Search by title or reference ID..." 
+                        className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-gray-500"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                {!isArchiveView && (
+                    <div className="flex items-center space-x-2 w-full sm:w-auto">
+                        <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
+                        >
+                            <option value="ALL">All Statuses</option>
+                            <option value={DocStatus.INCOMING}>Incoming</option>
+                            <option value={DocStatus.PROCESSING}>Processing</option>
+                            <option value={DocStatus.RETURNED}>Returned</option>
+                            <option value={DocStatus.COMPLETED}>Completed</option>
+                        </select>
+                    </div>
+                )}
             </div>
 
-            {/* Status Filter Dropdown - Only show if NOT in Archive View */}
-            {!isArchiveView && (
+            {/* Row 2: Date Filters */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 border-t border-gray-700/50 pt-4">
                 <div className="flex items-center space-x-2 w-full sm:w-auto">
-                    <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
+                    <Calendar className="w-4 h-4 text-blue-400" />
                     <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
+                        value={dateFilterType}
+                        onChange={(e) => {
+                            setDateFilterType(e.target.value as 'ALL'|'MONTH'|'RANGE');
+                            setSelectedMonth('');
+                            setDateRange({ start: '', end: '' });
+                        }}
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-40"
                     >
-                        <option value="ALL">All Statuses</option>
-                        <option value={DocStatus.INCOMING}>Incoming</option>
-                        {/* Removed Outgoing from filter list as requested */}
-                        <option value={DocStatus.PROCESSING}>Processing</option>
-                        <option value={DocStatus.RETURNED}>Returned</option>
-                        <option value={DocStatus.COMPLETED}>Completed</option>
+                        <option value="ALL">All Dates</option>
+                        <option value="MONTH">Specific Month</option>
+                        <option value="RANGE">Custom Range</option>
                     </select>
                 </div>
-            )}
+
+                {dateFilterType === 'MONTH' && (
+                    <input 
+                        type="month" 
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                )}
+
+                {dateFilterType === 'RANGE' && (
+                    <div className="flex items-center space-x-2 w-full sm:w-auto">
+                        <input 
+                            type="date" 
+                            value={dateRange.start}
+                            onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))}
+                            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                            placeholder="Start Date"
+                        />
+                        <span className="text-gray-400">-</span>
+                        <input 
+                            type="date" 
+                            value={dateRange.end}
+                            onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))}
+                            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                            placeholder="End Date"
+                        />
+                    </div>
+                )}
+            </div>
         </div>
+
         <div className="divide-y divide-gray-700">
           {filteredDocs.length > 0 ? (
             filteredDocs.map(doc => {
@@ -394,14 +469,14 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
                       
-                      <span className={`text-xs font-medium ${
+                      <span className={`text-[10px] font-medium p-2 rounded-lg ${
                           doc.priority === 'Highly Technical Transaction' ? 'text-red-400' : 
                           doc.priority === 'Complex Transaction' ? 'text-orange-400' : 'text-green-400'
                       }`}>
                           {doc.priority}
                       </span>
 
-                      <span className={`text-xs font-bold uppercase ${
+                      <span className={`text-[10px] font-bold uppercase p-2 rounded-lg ${
                           doc.communicationType === 'Urgent' ? 'text-red-500 animate-pulse' : 
                           doc.communicationType === 'Priority' ? 'text-yellow-500 animate-pulse' : 
                           'text-gray-500'
