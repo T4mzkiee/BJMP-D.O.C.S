@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SystemSettings } from '../types';
-import { Save, Upload, Camera, Building2, Layout, Loader2, FileText, CheckCircle, RefreshCcw, AlertTriangle, X } from 'lucide-react';
+import { Save, Upload, Camera, Building2, Layout, Loader2, FileText, CheckCircle, RefreshCcw, AlertTriangle, X, Terminal, Copy } from 'lucide-react';
 import { supabase, uploadFile } from '../utils/supabase';
 
 interface SystemSettingsPageProps {
@@ -13,6 +13,8 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showSqlFix, setShowSqlFix] = useState(false);
+  
   const [formData, setFormData] = useState({
     orgName: settings.orgName,
     appDescription: settings.appDescription,
@@ -48,6 +50,11 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
   const [previewLeftUrl, setPreviewLeftUrl] = useState<string | null>(settings.logoLeftUrl || null);
   const [previewRightUrl, setPreviewRightUrl] = useState<string | null>(settings.logoRightUrl || null);
 
+  const sqlFix = `-- Run this in Supabase SQL Editor:
+ALTER TABLE system_settings 
+ADD COLUMN IF NOT EXISTS logo_left_url TEXT,
+ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'left' | 'right') => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -80,6 +87,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
     setIsSaving(true);
     setIsSyncing(true);
     setSaveError(null);
+    setShowSqlFix(false);
     
     let finalLogoUrl = formData.logoUrl;
     let finalLogoLeftUrl = formData.logoLeftUrl;
@@ -122,8 +130,10 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
 
         if (error) {
             console.error("Database Sync Error:", error);
-            if (error.message.includes('schema cache') || error.code === 'PGRST204' || error.code === '42P01') {
-                throw new Error("The API cannot find the 'system_settings' table or new columns yet. Please run the SQL fix and wait 30 seconds for the cache to refresh.");
+            // Check if column is missing (common cause for sync failed on new features)
+            if (error.message.includes('column') || error.message.includes('schema cache') || error.code === 'PGRST204' || error.code === '42P01') {
+                setShowSqlFix(true);
+                throw new Error("The database table 'system_settings' is missing the new logo columns. Please run the SQL fix below.");
             }
             throw new Error(error.message || "Failed to synchronize with database.");
         }
@@ -151,6 +161,11 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
     }
   };
 
+  const copySql = () => {
+    navigator.clipboard.writeText(sqlFix);
+    alert("SQL fix copied to clipboard!");
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex justify-between items-end">
@@ -167,22 +182,45 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
       </div>
 
       {saveError && (
-          <div className="bg-red-900/20 border border-red-800/50 p-4 rounded-xl flex items-start space-x-3 animate-shake">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                  <h4 className="text-red-400 font-bold text-sm">Synchronization Failed</h4>
-                  <p className="text-red-300/80 text-xs mt-1 leading-relaxed">
-                      {saveError}
-                  </p>
-                  {saveError.includes('schema cache') && (
-                    <div className="mt-3 p-2 bg-black/40 rounded border border-red-900/50 text-[10px] font-mono text-red-400 uppercase">
-                        Tip: If you just added new columns, wait 30 seconds for the Supabase cache to refresh.
-                    </div>
-                  )}
+          <div className="bg-red-900/20 border border-red-800/50 p-5 rounded-xl animate-shake">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                    <h4 className="text-red-400 font-bold text-sm">Synchronization Failed</h4>
+                    <p className="text-red-300/80 text-xs mt-1 leading-relaxed">
+                        {saveError}
+                    </p>
+                    
+                    {showSqlFix && (
+                        <div className="mt-4 space-y-3">
+                            <div className="bg-black/40 rounded-lg border border-red-900/50 overflow-hidden">
+                                <div className="flex items-center justify-between px-3 py-2 bg-red-900/20 border-b border-red-900/30">
+                                    <span className="text-[10px] font-mono text-red-400 uppercase flex items-center">
+                                        <Terminal className="w-3 h-3 mr-1.5" />
+                                        SQL Fix Script
+                                    </span>
+                                    <button 
+                                        onClick={copySql}
+                                        className="text-red-400 hover:text-red-300 transition-colors"
+                                        title="Copy SQL"
+                                    >
+                                        <Copy className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                                <pre className="p-3 text-[11px] font-mono text-gray-300 overflow-x-auto">
+                                    {sqlFix}
+                                </pre>
+                            </div>
+                            <p className="text-[10px] text-red-400/70 italic">
+                                Note: After running this in Supabase, wait ~30 seconds and refresh this page.
+                            </p>
+                        </div>
+                    )}
+                </div>
+                <button onClick={() => setSaveError(null)} className="text-red-500 hover:text-red-400">
+                    <X className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={() => setSaveError(null)} className="text-red-500 hover:text-red-400">
-                  <X className="w-4 h-4" />
-              </button>
           </div>
       )}
 
