@@ -65,13 +65,11 @@ const App: React.FC = () => {
       // 2. Fetch System Settings
       try {
           const { data: dbSettings, error: settingsError } = await supabase.from('system_settings').select('*').maybeSingle();
-          if (settingsError && settingsError.code === 'PGRST116') {
-             // Specific error for "table not found" or "no rows" - handled gracefully by maybeSingle usually
-          } else if (dbSettings) {
+          if (dbSettings) {
             setSystemSettings({
               id: dbSettings.id,
               orgName: dbSettings.org_name,
-              app_description: dbSettings.app_description,
+              appDescription: dbSettings.app_description, // Fixed: was app_description
               logoUrl: dbSettings.logo_url
             });
           }
@@ -147,7 +145,7 @@ const App: React.FC = () => {
               setSystemSettings({
                   id: payload.new.id,
                   orgName: payload.new.org_name,
-                  app_description: payload.new.app_description,
+                  appDescription: payload.new.app_description, // Fixed: was app_description
                   logoUrl: payload.new.logo_url
               });
           }
