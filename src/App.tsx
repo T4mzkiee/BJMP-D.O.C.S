@@ -31,14 +31,16 @@ const App: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // Update Document Title whenever Org Name changes
+  useEffect(() => {
+    document.title = systemSettings.orgName;
+  }, [systemSettings.orgName]);
+
   // Layout State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Ref to track if we've already warned/logged out to prevent double-firing
-  const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Ref to prevent race conditions during immediate login after force logout
+  // Ref to track session
   const isJustLoggedIn = useRef(false);
 
   // --- DATA LOADING & AUTH RESTORATION ---
@@ -59,15 +61,19 @@ const App: React.FC = () => {
         }
       }
 
-      // 2. Fetch System Settings
-      const { data: dbSettings } = await supabase.from('system_settings').select('*').single();
-      if (dbSettings) {
-        setSystemSettings({
-          id: dbSettings.id,
-          orgName: dbSettings.org_name,
-          appDescription: dbSettings.app_description,
-          logoUrl: dbSettings.logo_url
-        });
+      // 2. Fetch System Settings (Use maybeSingle to avoid errors if empty)
+      try {
+          const { data: dbSettings } = await supabase.from('system_settings').select('*').maybeSingle();
+          if (dbSettings) {
+            setSystemSettings({
+              id: dbSettings.id,
+              orgName: dbSettings.org_name,
+              appDescription: dbSettings.app_description,
+              logoUrl: dbSettings.logo_url
+            });
+          }
+      } catch (err) {
+          console.error("Error fetching system settings:", err);
       }
 
       // 3. Fetch Users
@@ -77,16 +83,10 @@ const App: React.FC = () => {
 
       // Seed Users if empty
       if (!dbUsers || dbUsers.length === 0) {
-        console.log("Seeding Initial Users...");
         const seedUsers = await Promise.all(INITIAL_USERS.map(async (u) => {
           const salt = generateSalt();
           const hashedPassword = await hashPassword(u.password || 'user123', salt);
-          return {
-            ...u,
-            id: uuid(),
-            salt,
-            password: hashedPassword
-          };
+          return { ...u, id: uuid(), salt, password: hashedPassword };
         }));
 
         for (const u of seedUsers) {
@@ -105,12 +105,9 @@ const App: React.FC = () => {
       }
 
       // 5. Fetch Documents & Logs
-      const { data: dbDocs } = await supabase
-        .from('documents')
-        .select(`*, logs:document_logs(*)`);
+      const { data: dbDocs } = await supabase.from('documents').select(`*, logs:document_logs(*)`);
 
       if (dbDocs) {
-        // Sort documents by createdAt descending (newest first)
         const sortedDocs = dbDocs.sort((a: any, b: any) => 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
@@ -125,15 +122,18 @@ const App: React.FC = () => {
 
     // --- REALTIME SUBSCRIPTIONS ---
     
+    // Listen for ALL changes (Insert/Update) to settings
     const settingsSub = supabase
       .channel('realtime:settings')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'system_settings' }, (payload) => {
-          setSystemSettings({
-              id: payload.new.id,
-              orgName: payload.new.org_name,
-              appDescription: payload.new.app_description,
-              logoUrl: payload.new.logo_url
-          });
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, (payload) => {
+          if (payload.new) {
+              setSystemSettings({
+                  id: payload.new.id,
+                  orgName: payload.new.org_name,
+                  appDescription: payload.new.app_description,
+                  logoUrl: payload.new.logo_url
+              });
+          }
       })
       .subscribe();
 
@@ -166,10 +166,7 @@ const App: React.FC = () => {
         setDocuments(prev => prev.map(doc => {
           if (doc.id === payload.new.document_id) {
             if (doc.logs.some(l => l.id === newLog.id)) return doc;
-            return {
-              ...doc,
-              logs: [...doc.logs, newLog]
-            };
+            return { ...doc, logs: [...doc.logs, newLog] };
           }
           return doc;
         }));
@@ -181,10 +178,7 @@ const App: React.FC = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newUser = mapUserFromDB(payload.new);
-          setUsers(prev => {
-             if (prev.some(u => u.id === newUser.id)) return prev;
-             return [...prev, newUser];
-          });
+          setUsers(prev => prev.some(u => u.id === newUser.id) ? prev : [...prev, newUser]);
         } else if (payload.eventType === 'UPDATE') {
           const updatedUser = mapUserFromDB(payload.new);
           setUsers(prev => prev.map(u => u.id === payload.new.id ? updatedUser : u));
@@ -217,12 +211,9 @@ const App: React.FC = () => {
 
   // Monitor Auth Changes for Force Logout
   useEffect(() => {
-    // IGNORE checks if we just logged in (Grace Period)
     if (isJustLoggedIn.current) return;
-
     if (auth.isAuthenticated && auth.currentUser) {
         const userInState = users.find(u => u.id === auth.currentUser!.id);
-        
         if (userInState && userInState.isLoggedIn === false) {
             alert("You have been logged out remotely.");
             handleLogout(true); 
@@ -232,46 +223,25 @@ const App: React.FC = () => {
 
 
   const handleLogin = async (user: User) => {
-    // 1. Set Grace Period Flag
     isJustLoggedIn.current = true;
-    setTimeout(() => {
-        isJustLoggedIn.current = false;
-    }, 2000); // 2 seconds immunity
-
-    // 2. Optimistically update local Users state
+    setTimeout(() => { isJustLoggedIn.current = false; }, 2000);
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isLoggedIn: true } : u));
-
     const userWithAuth = { ...user, isLoggedIn: true };
     setAuth({ isAuthenticated: true, currentUser: userWithAuth });
     setCurrentPage('DASHBOARD');
     localStorage.setItem('bjmp_docs_user', JSON.stringify(userWithAuth));
-    
-    // 3. Update DB to logged in
     await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
   };
 
   const handleLogout = (skipDbUpdate: boolean = false) => {
     const userId = auth.currentUser?.id;
-
-    // --- 1. IMMEDIATE UI LOGOUT (PRIORITY) ---
-    // Optimistically update state
     if (userId) {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, isLoggedIn: false } : u));
     }
-
-    // Clear auth and redirect instantly
     setAuth({ isAuthenticated: false, currentUser: null });
     setCurrentPage('LOGIN');
     localStorage.removeItem('bjmp_docs_user');
-    
-    // Clear idle timers
-    if (logoutTimerRef.current) {
-        clearTimeout(logoutTimerRef.current);
-    }
-
-    // --- 2. BACKGROUND DB UPDATE (NON-BLOCKING) ---
     if (!skipDbUpdate && userId) {
-        // Fire-and-forget Promise
         supabase.from('users').update({ is_logged_in: false }).eq('id', userId).then(({ error }) => {
             if (error) console.error("Error logging out from DB:", error);
         });
@@ -280,7 +250,7 @@ const App: React.FC = () => {
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
-    setIsMobileSidebarOpen(false); // Close sidebar on nav on mobile
+    setIsMobileSidebarOpen(false);
   };
 
   const incomingCount = useMemo(() => {
@@ -325,11 +295,7 @@ const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main 
-        className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-hidden flex flex-col
-          ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}
-        `}
-      >
+      <main className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-hidden flex flex-col ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         {/* Mobile Header */}
         <div className="md:hidden bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -355,14 +321,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {currentPage === 'DASHBOARD' && (
-              <Dashboard 
-                documents={documents} 
-                setDocuments={setDocuments} 
-                users={users} 
-                setUsers={setUsers}
-                departments={departments}
-                currentUser={auth.currentUser!} 
-              />
+              <Dashboard documents={documents} setDocuments={setDocuments} users={users} setUsers={setUsers} departments={departments} currentUser={auth.currentUser!} />
             )}
             
             {currentPage === 'USERS' && (
@@ -371,46 +330,25 @@ const App: React.FC = () => {
                ) : (
                   <div className="text-center py-20 animate-fade-in">
                       <h2 className="text-2xl font-bold text-gray-500">Access Denied</h2>
-                      <p className="text-gray-600 mt-2">You do not have permission to view this page.</p>
                   </div>
                )
             )}
             
             {currentPage === 'DOCUMENTS' && (
-              <DocumentsPage 
-                documents={documents} 
-                setDocuments={setDocuments} 
-                currentUser={auth.currentUser!} 
-                users={users}
-                departments={departments}
-              />
+              <DocumentsPage documents={documents} setDocuments={setDocuments} currentUser={auth.currentUser!} users={users} departments={departments} />
             )}
 
             {currentPage === 'ARCHIVES' && (
-              <DocumentsPage 
-                documents={documents} 
-                setDocuments={setDocuments} 
-                currentUser={auth.currentUser!} 
-                users={users}
-                departments={departments}
-                isArchiveView={true}
-              />
+              <DocumentsPage documents={documents} setDocuments={setDocuments} currentUser={auth.currentUser!} users={users} departments={departments} isArchiveView={true} />
             )}
 
             {currentPage === 'ACCOUNT' && (
-              <AccountPage 
-                users={users} 
-                setUsers={setUsers} 
-                currentUser={auth.currentUser!} 
-              />
+              <AccountPage users={users} setUsers={setUsers} currentUser={auth.currentUser!} />
             )}
 
             {currentPage === 'SYSTEM_SETTINGS' && (
                auth.currentUser?.role === Role.ADMIN ? (
-                  <SystemSettingsPage 
-                    settings={systemSettings} 
-                    onUpdate={setSystemSettings} 
-                  />
+                  <SystemSettingsPage settings={systemSettings} onUpdate={setSystemSettings} />
                ) : (
                   <div className="text-center py-20">
                       <h2 className="text-2xl font-bold text-gray-500">Access Denied</h2>
