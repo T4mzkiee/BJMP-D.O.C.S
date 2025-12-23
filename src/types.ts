@@ -75,6 +75,8 @@ export interface SystemSettings {
   orgName: string;
   appDescription: string;
   logoUrl: string | null;
+  logoLeftUrl?: string | null;
+  logoRightUrl?: string | null;
 }
 
 export type Page = 'DASHBOARD' | 'USERS' | 'DOCUMENTS' | 'LOGIN' | 'ACCOUNT' | 'ARCHIVES' | 'SYSTEM_SETTINGS';

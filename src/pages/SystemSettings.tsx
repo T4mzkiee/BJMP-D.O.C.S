@@ -16,7 +16,9 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
   const [formData, setFormData] = useState({
     orgName: settings.orgName,
     appDescription: settings.appDescription,
-    logoUrl: settings.logoUrl
+    logoUrl: settings.logoUrl,
+    logoLeftUrl: settings.logoLeftUrl,
+    logoRightUrl: settings.logoRightUrl
   });
 
   // Sync internal state if props change (e.g. from a background realtime update)
@@ -24,25 +26,47 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
     setFormData({
       orgName: settings.orgName,
       appDescription: settings.appDescription,
-      logoUrl: settings.logoUrl
+      logoUrl: settings.logoUrl,
+      logoLeftUrl: settings.logoLeftUrl,
+      logoRightUrl: settings.logoRightUrl
     });
     setPreviewUrl(settings.logoUrl);
+    setPreviewLeftUrl(settings.logoLeftUrl || null);
+    setPreviewRightUrl(settings.logoRightUrl || null);
   }, [settings]);
 
   // Logo Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileLeftInputRef = useRef<HTMLInputElement>(null);
+  const fileRightInputRef = useRef<HTMLInputElement>(null);
+  
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedLeftFile, setSelectedLeftFile] = useState<File | null>(null);
+  const [selectedRightFile, setSelectedRightFile] = useState<File | null>(null);
+  
   const [previewUrl, setPreviewUrl] = useState<string | null>(settings.logoUrl);
+  const [previewLeftUrl, setPreviewLeftUrl] = useState<string | null>(settings.logoLeftUrl || null);
+  const [previewRightUrl, setPreviewRightUrl] = useState<string | null>(settings.logoRightUrl || null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'left' | 'right') => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 2 * 1024 * 1024) {
           alert("File size too large. Max 2MB allowed.");
           return;
       }
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      
+      const objectUrl = URL.createObjectURL(file);
+      if (type === 'main') {
+        setSelectedFile(file);
+        setPreviewUrl(objectUrl);
+      } else if (type === 'left') {
+        setSelectedLeftFile(file);
+        setPreviewLeftUrl(objectUrl);
+      } else {
+        setSelectedRightFile(file);
+        setPreviewRightUrl(objectUrl);
+      }
       setSaveError(null);
     }
   };
@@ -56,17 +80,24 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
     setIsSaving(true);
     setIsSyncing(true);
     setSaveError(null);
+    
     let finalLogoUrl = formData.logoUrl;
+    let finalLogoLeftUrl = formData.logoLeftUrl;
+    let finalLogoRightUrl = formData.logoRightUrl;
 
     try {
-        // 1. Handle Logo Upload
+        // 1. Handle Uploads
         if (selectedFile) {
             const uploadedUrl = await uploadFile(selectedFile, 'avatars');
-            if (uploadedUrl) {
-                finalLogoUrl = uploadedUrl;
-            } else {
-                throw new Error("Logo upload failed. Please check your Storage policies.");
-            }
+            if (uploadedUrl) finalLogoUrl = uploadedUrl;
+        }
+        if (selectedLeftFile) {
+            const uploadedUrl = await uploadFile(selectedLeftFile, 'avatars');
+            if (uploadedUrl) finalLogoLeftUrl = uploadedUrl;
+        }
+        if (selectedRightFile) {
+            const uploadedUrl = await uploadFile(selectedRightFile, 'avatars');
+            if (uploadedUrl) finalLogoRightUrl = uploadedUrl;
         }
 
         // 2. Sync to Supabase Database
@@ -79,6 +110,8 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
                 org_name: formData.orgName,
                 app_description: formData.appDescription,
                 logo_url: finalLogoUrl,
+                logo_left_url: finalLogoLeftUrl,
+                logo_right_url: finalLogoRightUrl,
                 updated_at: new Date().toISOString()
             }, { 
               onConflict: 'id',
@@ -89,9 +122,8 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
 
         if (error) {
             console.error("Database Sync Error:", error);
-            // Specific handling for "Schema Cache" or "Table not found"
             if (error.message.includes('schema cache') || error.code === 'PGRST204' || error.code === '42P01') {
-                throw new Error("The API cannot find the 'system_settings' table yet. Please run the SQL fix and wait 30 seconds for the Supabase cache to refresh.");
+                throw new Error("The API cannot find the 'system_settings' table or new columns yet. Please run the SQL fix and wait 30 seconds for the cache to refresh.");
             }
             throw new Error(error.message || "Failed to synchronize with database.");
         }
@@ -101,10 +133,14 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
             id: data.id,
             orgName: data.org_name,
             appDescription: data.app_description,
-            logoUrl: data.logo_url
+            logoUrl: data.logo_url,
+            logoLeftUrl: data.logo_left_url,
+            logoRightUrl: data.logo_right_url
         });
 
         setSelectedFile(null);
+        setSelectedLeftFile(null);
+        setSelectedRightFile(null);
         alert("System branding synchronized successfully!");
     } catch (err: any) {
         console.error("Sync error:", err);
@@ -140,7 +176,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
                   </p>
                   {saveError.includes('schema cache') && (
                     <div className="mt-3 p-2 bg-black/40 rounded border border-red-900/50 text-[10px] font-mono text-red-400 uppercase">
-                        Tip: If you just ran the SQL, refresh this page and try again in 30 seconds.
+                        Tip: If you just added new columns, wait 30 seconds for the Supabase cache to refresh.
                     </div>
                   )}
               </div>
@@ -151,85 +187,126 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LOGO COLUMN */}
         <div className="lg:col-span-1 space-y-6">
-            <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6 flex flex-col items-center text-center relative overflow-hidden">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6 w-full text-left">Organization Logo</h3>
+            <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6 flex flex-col items-center relative overflow-hidden">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6 w-full text-left">Logos Management</h3>
                 
-                <div 
-                    className="relative group cursor-pointer mb-6" 
-                    onClick={() => !isSaving && fileInputRef.current?.click()}
-                >
-                    <div className="w-40 h-40 rounded-2xl overflow-hidden border-2 border-dashed border-gray-600 group-hover:border-blue-500 transition-colors bg-gray-900 flex items-center justify-center">
-                        {previewUrl ? (
-                            <img src={previewUrl} alt="Logo Preview" className="w-full h-full object-contain p-4" />
-                        ) : (
-                            <div className="flex flex-col items-center text-gray-500">
-                                <FileText className="w-10 h-10 mb-2" />
-                                <span className="text-xs">No Logo Uploaded</span>
-                            </div>
-                        )}
-                    </div>
-                    {!isSaving && (
-                        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Camera className="w-8 h-8 text-white" />
-                        </div>
-                    )}
-                    {isSaving && selectedFile && (
-                        <div className="absolute inset-0 bg-gray-900/80 rounded-2xl flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                        </div>
-                    )}
+                {/* Main Org Logo */}
+                <div className="w-full space-y-2 mb-8">
+                  <label className="text-xs font-medium text-gray-500 uppercase">Organization Logo (Center)</label>
+                  <div 
+                      className="relative group cursor-pointer" 
+                      onClick={() => !isSaving && fileInputRef.current?.click()}
+                  >
+                      <div className="w-full h-32 rounded-xl overflow-hidden border-2 border-dashed border-gray-600 group-hover:border-blue-500 transition-colors bg-gray-900 flex items-center justify-center">
+                          {previewUrl ? (
+                              <img src={previewUrl} alt="Logo Preview" className="w-full h-full object-contain p-2" />
+                          ) : (
+                              <div className="flex flex-col items-center text-gray-500">
+                                  <FileText className="w-8 h-8 mb-1" />
+                                  <span className="text-[10px]">No Logo</span>
+                              </div>
+                          )}
+                      </div>
+                      {!isSaving && (
+                          <div className="absolute inset-0 bg-black bg-opacity-40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Camera className="w-6 h-6 text-white" />
+                          </div>
+                      )}
+                  </div>
+                  <input type="file" ref={fileInputRef} onChange={e => handleFileChange(e, 'main')} className="hidden" accept="image/*" disabled={isSaving} />
                 </div>
 
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange} 
-                    className="hidden" 
-                    accept="image/*"
-                    disabled={isSaving}
-                />
+                {/* Additional Logos Row */}
+                <div className="grid grid-cols-2 gap-4 w-full">
+                    {/* Left Logo */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-gray-500 uppercase">Logo 1 (Left)</label>
+                        <div 
+                            className="relative group cursor-pointer" 
+                            onClick={() => !isSaving && fileLeftInputRef.current?.click()}
+                        >
+                            <div className="w-full h-24 rounded-lg overflow-hidden border-2 border-dashed border-gray-600 group-hover:border-blue-500 transition-colors bg-gray-900 flex items-center justify-center">
+                                {previewLeftUrl ? (
+                                    <img src={previewLeftUrl} alt="Logo Left" className="w-full h-full object-contain p-2" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-gray-500">
+                                        <FileText className="w-6 h-6" />
+                                    </div>
+                                )}
+                            </div>
+                            {!isSaving && (
+                                <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Upload className="w-4 h-4 text-white" />
+                                </div>
+                            )}
+                        </div>
+                        <input type="file" ref={fileLeftInputRef} onChange={e => handleFileChange(e, 'left')} className="hidden" accept="image/*" disabled={isSaving} />
+                    </div>
 
-                <p className="text-xs text-gray-500 mb-4 px-4">
-                    Recommended: Square PNG or SVG. Max 2MB.
+                    {/* Right Logo */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-gray-500 uppercase">Logo 2 (Right)</label>
+                        <div 
+                            className="relative group cursor-pointer" 
+                            onClick={() => !isSaving && fileRightInputRef.current?.click()}
+                        >
+                            <div className="w-full h-24 rounded-lg overflow-hidden border-2 border-dashed border-gray-600 group-hover:border-blue-500 transition-colors bg-gray-900 flex items-center justify-center">
+                                {previewRightUrl ? (
+                                    <img src={previewRightUrl} alt="Logo Right" className="w-full h-full object-contain p-2" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-gray-500">
+                                        <FileText className="w-6 h-6" />
+                                    </div>
+                                )}
+                            </div>
+                            {!isSaving && (
+                                <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Upload className="w-4 h-4 text-white" />
+                                </div>
+                            )}
+                        </div>
+                        <input type="file" ref={fileRightInputRef} onChange={e => handleFileChange(e, 'right')} className="hidden" accept="image/*" disabled={isSaving} />
+                    </div>
+                </div>
+
+                <p className="text-[10px] text-gray-500 mt-6 text-center px-2">
+                    Recommended: Square PNG or SVG with transparent background. Max 2MB per file.
                 </p>
-                
-                <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSaving}
-                    className="flex items-center space-x-2 text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors disabled:opacity-50"
-                >
-                    <Upload className="w-4 h-4" />
-                    <span>{previewUrl ? 'Change Logo' : 'Upload Logo'}</span>
-                </button>
             </div>
 
+            {/* Live Preview Card */}
             <div className="bg-blue-900/10 border border-blue-900/30 rounded-xl p-6">
-                <h4 className="text-blue-400 font-bold text-sm mb-2 flex items-center">
+                <h4 className="text-blue-400 font-bold text-sm mb-4 flex items-center">
                     <Layout className="w-4 h-4 mr-2" />
-                    Live Preview
+                    Login Page Header Preview
                 </h4>
-                <div className="bg-gray-900 rounded-lg p-4 border border-gray-700 shadow-inner">
-                    <div className="flex items-center space-x-3 mb-4 opacity-80">
-                         <div className="w-14 h-14 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="bg-gray-900 rounded-lg p-6 border border-gray-700 shadow-inner">
+                    <div className="flex items-center justify-between mb-4">
+                         <div className="w-10 h-10 flex items-center justify-center">
+                             {previewLeftUrl ? <img src={previewLeftUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-8 h-8 bg-gray-800 rounded" />}
+                         </div>
+                         <div className="w-14 h-14 flex items-center justify-center">
                              {previewUrl ? (
                                 <img src={previewUrl} className="w-full h-full object-contain" alt="" />
                              ) : (
-                                <div className="bg-blue-600 p-2 rounded-xl">
-                                  <FileText className="w-6 h-6 text-white" />
-                                </div>
+                                <div className="bg-blue-600 p-1.5 rounded-lg"><FileText className="w-6 h-6 text-white" /></div>
                              )}
                          </div>
-                         <span className="text-sm font-bold text-white truncate max-w-[150px]">{formData.orgName || 'Organization Name'}</span>
+                         <div className="w-10 h-10 flex items-center justify-center">
+                             {previewRightUrl ? <img src={previewRightUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-8 h-8 bg-gray-800 rounded" />}
+                         </div>
                     </div>
-                    <div className="space-y-1">
-                        <div className="h-2 w-full bg-gray-800 rounded"></div>
-                        <div className="h-2 w-3/4 bg-gray-800 rounded"></div>
+                    <div className="text-center space-y-1">
+                        <div className="h-3 w-3/4 bg-gray-700 rounded mx-auto"></div>
+                        <div className="h-2 w-1/2 bg-gray-800 rounded mx-auto"></div>
                     </div>
                 </div>
             </div>
         </div>
 
+        {/* INFO COLUMN */}
         <div className="lg:col-span-2 space-y-6">
             <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-8">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6 flex items-center">

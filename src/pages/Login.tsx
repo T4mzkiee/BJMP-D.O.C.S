@@ -179,14 +179,35 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users, systemSettings }) 
           )}
 
           <div className="mb-8">
-            <div className="w-24 h-24 flex items-center justify-center mb-6 overflow-hidden">
-               {systemSettings.logoUrl ? (
-                   <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-               ) : (
-                   <div className="bg-blue-600 p-4 rounded-2xl">
-                     <FileText className="text-white w-12 h-12" />
-                   </div>
-               )}
+            <div className="flex items-center justify-between mb-8 w-full px-2">
+               {/* Logo 1 - Left */}
+               <div className="w-16 h-16 flex items-center justify-center overflow-hidden">
+                  {systemSettings.logoLeftUrl ? (
+                      <img src={systemSettings.logoLeftUrl} alt="Logo Left" className="w-full h-full object-contain" />
+                  ) : (
+                      <div className="w-12 h-12 bg-gray-700/50 rounded-lg animate-pulse" />
+                  )}
+               </div>
+
+               {/* Org Logo - Center */}
+               <div className="w-24 h-24 flex items-center justify-center overflow-hidden">
+                  {systemSettings.logoUrl ? (
+                      <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                  ) : (
+                      <div className="bg-blue-600 p-4 rounded-2xl">
+                        <FileText className="text-white w-12 h-12" />
+                      </div>
+                  )}
+               </div>
+
+               {/* Logo 2 - Right */}
+               <div className="w-16 h-16 flex items-center justify-center overflow-hidden">
+                  {systemSettings.logoRightUrl ? (
+                      <img src={systemSettings.logoRightUrl} alt="Logo Right" className="w-full h-full object-contain" />
+                  ) : (
+                      <div className="w-12 h-12 bg-gray-700/50 rounded-lg animate-pulse" />
+                  )}
+               </div>
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">{systemSettings.orgName}</h1>
             <p className="text-gray-400">Please enter your details to sign in.</p>

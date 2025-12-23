@@ -27,7 +27,9 @@ const App: React.FC = () => {
     id: 'default',
     orgName: 'BJMP8 D.O.C.S',
     appDescription: 'BJMP8 Document-On-Control-System A simple Document Tracking System Developed by BJMPRO8 RICTMD TEAM.',
-    logoUrl: null
+    logoUrl: null,
+    logoLeftUrl: null,
+    logoRightUrl: null
   });
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -70,7 +72,9 @@ const App: React.FC = () => {
               id: dbSettings.id,
               orgName: dbSettings.org_name,
               appDescription: dbSettings.app_description, 
-              logoUrl: dbSettings.logo_url
+              logoUrl: dbSettings.logo_url,
+              logoLeftUrl: dbSettings.logo_left_url,
+              logoRightUrl: dbSettings.logo_right_url
             });
           }
       } catch (err) {
@@ -146,7 +150,9 @@ const App: React.FC = () => {
                   id: payload.new.id,
                   orgName: payload.new.org_name,
                   appDescription: payload.new.app_description,
-                  logoUrl: payload.new.logo_url
+                  logoUrl: payload.new.logo_url,
+                  logoLeftUrl: payload.new.logo_left_url,
+                  logoRightUrl: payload.new.logo_right_url
               });
           }
       })
