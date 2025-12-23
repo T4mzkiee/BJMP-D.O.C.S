@@ -95,7 +95,6 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
         // --- NEW: Server-Side Duplicate Check (Create Mode Only) ---
         if (!editingUser) {
             // Check for existing email OR existing name
-            // We use quotes around values to handle names with spaces correctly in the OR syntax
             const { data: existingUsers, error: checkError } = await supabase
                 .from('users')
                 .select('id')
@@ -103,7 +102,6 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
 
             if (checkError) {
                 console.error("Error checking duplicates:", checkError);
-                // We typically continue or stop depending on strictness. Stopping for safety.
                 alert("Error verifying database. Please try again.");
                 setIsSaving(false);
                 return;
@@ -115,9 +113,8 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                 return;
             }
         }
-        // -----------------------------------------------------------
 
-        // 1. Handle File Upload (if a file was selected)
+        // 1. Handle File Upload
         let finalAvatarUrl = formData.avatarUrl;
         if (selectedFile) {
             const uploadedUrl = await uploadFile(selectedFile, 'avatars');
@@ -133,7 +130,6 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
           const updatedUser = { ...editingUser, ...formData, avatarUrl: finalAvatarUrl } as User;
           setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
           
-          // Sync Supabase
           await supabase.from('users').update(mapUserToDB(updatedUser)).eq('id', editingUser.id);
 
         } else {
@@ -150,7 +146,6 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
           
           setUsers(prev => [...prev, newUser]);
           
-          // Sync Supabase
           await supabase.from('users').insert(mapUserToDB(newUser));
         }
         setIsModalOpen(false);
@@ -220,8 +215,8 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 flex flex-col h-full max-h-[calc(100vh-100px)] animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white">User Management</h1>
           <p className="text-sm text-gray-400">Manage system access and roles.</p>
@@ -235,8 +230,8 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
         </button>
       </div>
 
-      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex items-center space-x-3">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex items-center space-x-3 shrink-0">
             <Search className="w-4 h-4 text-gray-400" />
             <input 
                 type="text" 
@@ -246,9 +241,10 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
         </div>
-        <div className="overflow-x-auto">
+        {/* Table Wrapper with fixed-ish height and scrollbars */}
+        <div className="overflow-auto flex-1 custom-scrollbar">
           <table className="w-full text-left">
-            <thead>
+            <thead className="sticky top-0 bg-gray-800 z-10 shadow-sm">
               <tr className="bg-gray-700/50 text-gray-400 text-xs uppercase tracking-wider">
                 <th className="px-6 py-4 font-semibold">User</th>
                 <th className="px-6 py-4 font-semibold">Role</th>
@@ -267,14 +263,14 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                         alt="" 
                         className="w-8 h-8 rounded-full bg-gray-600 object-cover" 
                       />
-                      <div>
-                        <p className="text-sm font-medium text-gray-100">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-100 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                       user.role === Role.ADMIN ? 'bg-purple-900/50 text-purple-300 border border-purple-800' : 
                       user.role === Role.MESSAGE_CENTER ? 'bg-orange-900/50 text-orange-300 border border-orange-800' :
                       'bg-blue-900/50 text-blue-300 border border-blue-800'
@@ -282,9 +278,9 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">{user.department}</td>
+                  <td className="px-6 py-4 text-sm text-gray-300 whitespace-nowrap">{user.department}</td>
                   <td className="px-6 py-4">
-                     <span className={`inline-flex items-center space-x-1 text-xs font-medium px-2 py-1 rounded-md border ${
+                     <span className={`inline-flex items-center space-x-1 text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap ${
                          user.isActive ? 'border-green-800 bg-green-900/50 text-green-300' : 'border-red-800 bg-red-900/50 text-red-300'
                      }`}>
                          {user.isActive ? <CheckCircle className="w-3 h-3"/> : <Ban className="w-3 h-3"/>}
@@ -323,6 +319,13 @@ export const UsersPage: React.FC<UsersProps> = ({ users, setUsers, currentUser, 
                   </td>
                 </tr>
               ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                    <td colSpan={5} className="py-20 text-center">
+                        <p className="text-gray-500 text-sm">No users found.</p>
+                    </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -759,8 +759,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
 
   // USER & MESSAGE CENTER DASHBOARD
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 animate-fade-in flex flex-col h-full max-h-[calc(100vh-100px)]">
+      <div className="flex justify-between items-center shrink-0">
         <div>
            <h1 className="text-2xl font-bold text-white">
              {currentUser.role === Role.MESSAGE_CENTER ? 'Message Center Dispatch' : 'My Workspace'}
@@ -783,9 +783,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         </div>
       </div>
 
-      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden min-h-[500px]">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden flex flex-col flex-1 min-h-0">
         {/* Tabs */}
-        <div className="flex border-b border-gray-700">
+        <div className="flex border-b border-gray-700 shrink-0">
             <button
                 onClick={() => { setActiveTab('incoming'); setDashboardSearchTerm(''); setStatusFilter('ALL'); }}
                 className={`flex-1 py-4 text-sm font-medium flex items-center justify-center space-x-2 border-b-2 transition-colors ${
@@ -819,7 +819,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
         </div>
 
         {/* TOOLBAR: Search & Filter */}
-        <div className="p-3 border-b border-gray-700 bg-gray-900/20 flex flex-col sm:flex-row gap-3">
+        <div className="p-3 border-b border-gray-700 bg-gray-900/20 flex flex-col sm:flex-row gap-3 shrink-0">
             {/* Search Bar */}
             <div className="relative flex-1">
                 <input
@@ -858,8 +858,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ documents, setDocuments, u
             )}
         </div>
 
-        {/* List Content */}
-        <div className="divide-y divide-gray-700">
+        {/* List Content - Fixed size with scrollbar */}
+        <div className="divide-y divide-gray-700 overflow-y-auto flex-1 custom-scrollbar">
             {filteredDisplayDocs.length > 0 ? (
                 filteredDisplayDocs.map(doc => {
                     const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
