@@ -211,11 +211,13 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
                 </h4>
                 <div className="bg-gray-900 rounded-lg p-4 border border-gray-700 shadow-inner">
                     <div className="flex items-center space-x-3 mb-4 opacity-80">
-                         <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                         <div className="w-14 h-14 flex items-center justify-center overflow-hidden flex-shrink-0">
                              {previewUrl ? (
-                                <img src={previewUrl} className="w-full h-full object-contain p-1.5" alt="" />
+                                <img src={previewUrl} className="w-full h-full object-contain" alt="" />
                              ) : (
-                                <FileText className="w-6 h-6 text-white" />
+                                <div className="bg-blue-600 p-2 rounded-xl">
+                                  <FileText className="w-6 h-6 text-white" />
+                                </div>
                              )}
                          </div>
                          <span className="text-sm font-bold text-white truncate max-w-[150px]">{formData.orgName || 'Organization Name'}</span>

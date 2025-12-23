@@ -179,11 +179,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users, systemSettings }) 
           )}
 
           <div className="mb-8">
-            <div className="w-24 h-24 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-500 shadow-lg overflow-hidden">
+            <div className="w-24 h-24 flex items-center justify-center mb-6 overflow-hidden">
                {systemSettings.logoUrl ? (
-                   <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+                   <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                ) : (
-                   <FileText className="text-white w-12 h-12" />
+                   <div className="bg-blue-600 p-4 rounded-2xl">
+                     <FileText className="text-white w-12 h-12" />
+                   </div>
                )}
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">{systemSettings.orgName}</h1>
