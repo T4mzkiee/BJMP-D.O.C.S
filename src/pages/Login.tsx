@@ -178,34 +178,34 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users, systemSettings }) 
              </div>
           )}
 
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-8 w-full px-2">
+          <div className="mb-8 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-between mb-8 w-full gap-4">
                {/* Logo 1 - Left */}
-               <div className="w-16 h-16 flex items-center justify-center overflow-hidden">
+               <div className="w-20 h-20 flex items-center justify-center overflow-hidden shrink-0">
                   {systemSettings.logoLeftUrl ? (
                       <img src={systemSettings.logoLeftUrl} alt="Logo Left" className="w-full h-full object-contain" />
                   ) : (
-                      <div className="w-12 h-12 bg-gray-700/50 rounded-lg animate-pulse" />
+                      <div className="w-16 h-16 bg-gray-700/50 rounded-lg animate-pulse" />
                   )}
                </div>
 
                {/* Org Logo - Center */}
-               <div className="w-24 h-24 flex items-center justify-center overflow-hidden">
+               <div className="w-20 h-20 flex items-center justify-center overflow-hidden shrink-0">
                   {systemSettings.logoUrl ? (
                       <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                   ) : (
                       <div className="bg-blue-600 p-4 rounded-2xl">
-                        <FileText className="text-white w-12 h-12" />
+                        <FileText className="text-white w-10 h-10" />
                       </div>
                   )}
                </div>
 
                {/* Logo 2 - Right */}
-               <div className="w-16 h-16 flex items-center justify-center overflow-hidden">
+               <div className="w-20 h-20 flex items-center justify-center overflow-hidden shrink-0">
                   {systemSettings.logoRightUrl ? (
                       <img src={systemSettings.logoRightUrl} alt="Logo Right" className="w-full h-full object-contain" />
                   ) : (
-                      <div className="w-12 h-12 bg-gray-700/50 rounded-lg animate-pulse" />
+                      <div className="w-16 h-16 bg-gray-700/50 rounded-lg animate-pulse" />
                   )}
                </div>
             </div>

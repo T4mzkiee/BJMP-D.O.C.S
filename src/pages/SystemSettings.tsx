@@ -322,18 +322,18 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
                 </h4>
                 <div className="bg-gray-900 rounded-lg p-6 border border-gray-700 shadow-inner">
                     <div className="flex items-center justify-between mb-4">
-                         <div className="w-10 h-10 flex items-center justify-center">
-                             {previewLeftUrl ? <img src={previewLeftUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-8 h-8 bg-gray-800 rounded" />}
+                         <div className="w-12 h-12 flex items-center justify-center">
+                             {previewLeftUrl ? <img src={previewLeftUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-10 h-10 bg-gray-800 rounded" />}
                          </div>
-                         <div className="w-14 h-14 flex items-center justify-center">
+                         <div className="w-12 h-12 flex items-center justify-center">
                              {previewUrl ? (
                                 <img src={previewUrl} className="w-full h-full object-contain" alt="" />
                              ) : (
-                                <div className="bg-blue-600 p-1.5 rounded-lg"><FileText className="w-6 h-6 text-white" /></div>
+                                <div className="bg-blue-600 p-2 rounded-lg"><FileText className="w-6 h-6 text-white" /></div>
                              )}
                          </div>
-                         <div className="w-10 h-10 flex items-center justify-center">
-                             {previewRightUrl ? <img src={previewRightUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-8 h-8 bg-gray-800 rounded" />}
+                         <div className="w-12 h-12 flex items-center justify-center">
+                             {previewRightUrl ? <img src={previewRightUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-10 h-10 bg-gray-800 rounded" />}
                          </div>
                     </div>
                     <div className="text-center space-y-1">
