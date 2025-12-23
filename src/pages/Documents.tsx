@@ -197,35 +197,26 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
   };
 
   const relevantDocs = useMemo(() => {
-    // Create a copy to avoid mutating state
     if (currentUser.role === Role.ADMIN) {
       return [...documents];
     } 
     
-    // Strict Filter: Only show documents where the Originating Department matches the Current User's Department
     return documents.filter(doc => {
-      // 1. Identify Originating Department
       let originDept = '';
-      
-      // Try getting from Creator ID
       const creator = users.find(u => u.id === doc.createdBy);
       if (creator) {
           originDept = creator.department;
       } else {
-          // Fallback: If creator not found in active list, deduce from logs (first entry)
           if (doc.logs && doc.logs.length > 0) {
               const sortedLogs = [...doc.logs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
               originDept = sortedLogs[0]?.department || '';
           }
       }
-
-      // 2. Check match
       return originDept === currentUser.department;
     });
-
   }, [documents, currentUser, users]);
 
-  // --- SORTING LOGIC ---
+  // Sorting
   const sortedDocs = useMemo(() => {
     const typeWeight: Record<string, number> = {
       'Urgent': 3,
@@ -236,29 +227,20 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
     return [...relevantDocs].sort((a, b) => {
       const weightA = typeWeight[a.communicationType || 'Regular'] || 1;
       const weightB = typeWeight[b.communicationType || 'Regular'] || 1;
-
-      if (weightA !== weightB) {
-        return weightB - weightA;
-      }
-
+      if (weightA !== weightB) return weightB - weightA;
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
-      
       if (isNaN(dateA)) return 1;
       if (isNaN(dateB)) return -1;
-
       return dateB - dateA;
     });
   }, [relevantDocs]);
 
-  // Combined Filter: Search Term + Status Filter + Date Filter + Hide System Checkpoints
+  // Combined Filtering
   const filteredDocs = sortedDocs.filter(d => {
     const matchesSearch = d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           d.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const isNotCheckpoint = d.title !== '_SYSTEM_CHECKPOINT_';
-
-    // Status Filter
     let matchesStatus = true;
     if (isArchiveView) {
         matchesStatus = d.status === DocStatus.ARCHIVED;
@@ -269,11 +251,8 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
             matchesStatus = d.status === statusFilter;
         }
     }
-
-    // Date Filter
     let matchesDate = true;
     const docDate = new Date(d.createdAt);
-    
     if (dateFilterType === 'RANGE') {
         if (dateRange.start) {
             const start = new Date(dateRange.start);
@@ -286,13 +265,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
             if (docDate > end) matchesDate = false;
         }
     }
-
     return matchesSearch && matchesStatus && isNotCheckpoint && matchesDate;
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 flex flex-col h-full max-h-[calc(100vh-100px)] animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white">
             {isArchiveView ? 'Archived Documents' : 'Documents'}
@@ -328,11 +306,9 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         </div>
       </div>
 
-      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
-         {/* Toolbar */}
-         <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex flex-col gap-4">
-            
-            {/* Row 1: Search & Status */}
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 overflow-hidden flex flex-col flex-1 min-h-0">
+         {/* Toolbar - Sticky Top */}
+         <div className="p-4 border-b border-gray-700 bg-gray-900/30 flex flex-col gap-4 shrink-0">
             <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex items-center space-x-3 bg-gray-700/50 rounded-lg px-3 py-2 flex-1 w-full border border-gray-600">
                     <Search className="w-4 h-4 text-gray-400" />
@@ -344,7 +320,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-
                 {!isArchiveView && (
                     <div className="flex items-center space-x-2 w-full sm:w-auto">
                         <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
@@ -362,8 +337,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     </div>
                 )}
             </div>
-
-            {/* Row 2: Date Filters */}
             <div className="flex flex-col sm:flex-row items-center gap-4 border-t border-gray-700/50 pt-4">
                 <div className="flex items-center space-x-2 w-full sm:w-auto">
                     <Calendar className="w-4 h-4 text-blue-400" />
@@ -379,7 +352,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                         <option value="RANGE">Custom Range</option>
                     </select>
                 </div>
-
                 {dateFilterType === 'RANGE' && (
                     <div className="flex items-center space-x-2 w-full sm:w-auto">
                         <input 
@@ -387,7 +359,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                             value={dateRange.start}
                             onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))}
                             className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-                            placeholder="Start Date"
                         />
                         <span className="text-gray-400">-</span>
                         <input 
@@ -395,23 +366,20 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                             value={dateRange.end}
                             onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))}
                             className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-                            placeholder="End Date"
                         />
                     </div>
                 )}
             </div>
         </div>
 
-        <div className="divide-y divide-gray-700">
+        {/* Scrollable List Area */}
+        <div className="divide-y divide-gray-700 overflow-y-auto flex-1 custom-scrollbar">
           {filteredDocs.length > 0 ? (
             filteredDocs.map(doc => {
               const lastLog = doc.logs.length > 0 ? doc.logs[doc.logs.length - 1] : null;
               const isReturned = lastLog && lastLog.action.includes('Returned') && doc.status === DocStatus.INCOMING;
               const wasReturned = doc.logs.some(l => l.action.toLowerCase().includes('returned'));
 
-              // Determine Archive Permission:
-              // 1. Must be COMPLETED
-              // 2. Must be the Originator (Creator's department == User's department) OR Admin
               const creator = users.find(u => u.id === doc.createdBy);
               const isOriginatingDept = creator && currentUser.department === creator.department;
               const canArchive = doc.status === DocStatus.COMPLETED && (isOriginatingDept || currentUser.role === Role.ADMIN);
@@ -451,14 +419,12 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     </div>
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-gray-500">Created: {new Date(doc.createdAt).toLocaleDateString()}</span>
-                      
                       <span className={`text-[10px] font-medium ${
                           doc.priority === 'Highly Technical Transaction' ? 'text-red-400' : 
                           doc.priority === 'Complex Transaction' ? 'text-orange-400' : 'text-green-400'
                       }`}>
                           {doc.priority}
                       </span>
-
                       <span className={`text-[10px] font-bold uppercase ${
                           doc.communicationType === 'Urgent' ? 'text-red-500 animate-pulse' : 
                           doc.communicationType === 'Priority' ? 'text-yellow-500 animate-pulse' : 
@@ -466,7 +432,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                       }`}>
                           {doc.communicationType || 'Regular'}
                       </span>
-
                       {doc.status === DocStatus.COMPLETED && wasReturned && (
                           <span className="text-[10px] font-medium p-2 rounded-lg bg-red-900/50 text-red-300 border border-red-800">
                               RETURNED
@@ -487,7 +452,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                     >
                         <History className="w-5 h-5" />
                     </button>
-                    {/* Archive Action - Only for Completed Docs, Originating Dept, and NOT already in Archive View */}
                     {!isArchiveView && canArchive && (
                         <button
                             onClick={(e) => handleArchive(e, doc)}
@@ -536,21 +500,17 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
         documents={documents}
         departments={departments}
       />
-
       <SuccessModal 
         isOpen={successModal.isOpen} 
         onClose={() => setSuccessModal(prev => ({ ...prev, isOpen: false }))}
         controlNumber={successModal.controlNumber}
         department={successModal.department}
       />
-
       <DocumentLogsModal 
         isOpen={!!selectedDoc}
         onClose={() => setSelectedDoc(null)}
         document={selectedDoc}
       />
-
-      {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && deleteModal.doc && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 relative border border-gray-700">
@@ -589,8 +549,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
             </div>
         </div>
       )}
-
-      {/* Clear Data Modal */}
       {clearModal && (
         <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 relative border border-red-800/50">
@@ -600,7 +558,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                 >
                     <X className="w-5 h-5" />
                 </button>
-                
                 <div className="flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-700 animate-pulse">
                         <ShieldAlert className="w-8 h-8 text-red-500" />
@@ -614,7 +571,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                             <li className="flex items-center text-green-400"><span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span><strong>Preserves</strong> Control Number Series Continuity</li>
                         </ul>
                     </div>
-                    
                     <div className="w-full mb-6 text-left">
                         <label className="block text-xs font-medium text-gray-500 mb-1 uppercase">Type "CONFIRM" to proceed</label>
                         <input 
@@ -625,7 +581,6 @@ export const DocumentsPage: React.FC<DocsProps> = ({ documents, setDocuments, cu
                             placeholder="CONFIRM"
                         />
                     </div>
-
                     <div className="flex space-x-3 w-full">
                         <button
                             onClick={() => { setClearModal(false); setClearConfirmText(''); }}
