@@ -1,5 +1,4 @@
 
-
 export enum Role {
   ADMIN = 'ADMIN',
   USER = 'USER',
@@ -71,4 +70,11 @@ export interface AuthState {
   currentUser: User | null;
 }
 
-export type Page = 'DASHBOARD' | 'USERS' | 'DOCUMENTS' | 'LOGIN' | 'ACCOUNT' | 'ARCHIVES';
+export interface SystemSettings {
+  id: string;
+  orgName: string;
+  appDescription: string;
+  logoUrl: string | null;
+}
+
+export type Page = 'DASHBOARD' | 'USERS' | 'DOCUMENTS' | 'LOGIN' | 'ACCOUNT' | 'ARCHIVES' | 'SYSTEM_SETTINGS';

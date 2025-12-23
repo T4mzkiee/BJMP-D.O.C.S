@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User } from '../types';
+import { User, SystemSettings } from '../types';
 import { ShieldCheck, ArrowRight, FileText, Lock, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import { verifyPassword } from '../utils/crypto';
 import { supabase } from '../utils/supabase';
@@ -8,9 +8,10 @@ import { supabase } from '../utils/supabase';
 interface LoginProps {
   onLogin: (user: User) => void;
   users: User[];
+  systemSettings: SystemSettings;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
+export const Login: React.FC<LoginProps> = ({ onLogin, users, systemSettings }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -178,10 +179,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           )}
 
           <div className="mb-8">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4 border border-blue-500">
-               <FileText className="text-white w-6 h-6" />
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4 border border-blue-500 overflow-hidden">
+               {systemSettings.logoUrl ? (
+                   <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+               ) : (
+                   <FileText className="text-white w-6 h-6" />
+               )}
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">BJMP8 D.O.C.S</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">{systemSettings.orgName}</h1>
             <p className="text-gray-400">Please enter your details to sign in.</p>
           </div>
 
@@ -253,7 +258,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           </form>
         </div>
 
-        {/* Right Side: Visual (Abstract Shapes) */}
+        {/* Right Side: Visual */}
         <div className="hidden md:flex w-1/2 bg-blue-900/20 relative overflow-hidden flex-col justify-between p-10 text-white border-l border-gray-700">
           <div className="absolute inset-0 bg-blue-900 opacity-90"></div>
           <div className="absolute inset-0 opacity-20">
@@ -263,9 +268,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           
           <div className="relative z-10 h-full flex flex-col justify-between">
             <div>
-              <h2 className="text-3xl font-bold mb-4 drop-shadow-md">Streamline Your Document Workflow</h2>
+              <h2 className="text-3xl font-bold mb-4 drop-shadow-md">Professional Document Tracking</h2>
               <p className="text-blue-100 leading-relaxed drop-shadow-sm font-medium">
-                BJMP8 Document-On-Control-System A simple Document Tracking System Developed by BJMPRO8 RICTMD TEAM.
+                {systemSettings.appDescription}
               </p>
             </div>
             <div className="flex items-center space-x-2 text-sm text-blue-200 bg-blue-900/50 p-3 rounded-lg backdrop-blur-sm border border-blue-700 w-fit">

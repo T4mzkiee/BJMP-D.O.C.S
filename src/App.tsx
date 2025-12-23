@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AuthState, Page, Role, User, DocumentTrack, Department, DocStatus } from './types';
+import { AuthState, Page, Role, User, DocumentTrack, Department, DocStatus, SystemSettings } from './types';
 import { INITIAL_USERS } from './constants';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UsersPage } from './pages/Users';
 import { DocumentsPage } from './pages/Documents';
 import { AccountPage } from './pages/Account';
+import { SystemSettingsPage } from './pages/SystemSettings';
 import { Sidebar } from './components/Sidebar';
 import { generateSalt, hashPassword, uuid } from './utils/crypto';
 import { supabase, mapUserFromDB, mapDocFromDB, mapUserToDB, mapLogFromDB } from './utils/supabase';
@@ -21,6 +23,12 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [documents, setDocuments] = useState<DocumentTrack[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
+    id: 'default',
+    orgName: 'BJMP8 D.O.C.S',
+    appDescription: 'BJMP8 Document-On-Control-System A simple Document Tracking System Developed by BJMPRO8 RICTMD TEAM.',
+    logoUrl: null
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   // Layout State
@@ -51,7 +59,18 @@ const App: React.FC = () => {
         }
       }
 
-      // 2. Fetch Users
+      // 2. Fetch System Settings
+      const { data: dbSettings } = await supabase.from('system_settings').select('*').single();
+      if (dbSettings) {
+        setSystemSettings({
+          id: dbSettings.id,
+          orgName: dbSettings.org_name,
+          appDescription: dbSettings.app_description,
+          logoUrl: dbSettings.logo_url
+        });
+      }
+
+      // 3. Fetch Users
       const { data: dbUsers } = await supabase.from('users').select('*');
       
       let appUsers: User[] = [];
@@ -79,13 +98,13 @@ const App: React.FC = () => {
       }
       setUsers(appUsers);
 
-      // 3. Fetch Departments
+      // 4. Fetch Departments
       const { data: dbDepts } = await supabase.from('departments').select('*').order('name');
       if (dbDepts) {
         setDepartments(dbDepts);
       }
 
-      // 4. Fetch Documents & Logs
+      // 5. Fetch Documents & Logs
       const { data: dbDocs } = await supabase
         .from('documents')
         .select(`*, logs:document_logs(*)`);
@@ -106,6 +125,18 @@ const App: React.FC = () => {
 
     // --- REALTIME SUBSCRIPTIONS ---
     
+    const settingsSub = supabase
+      .channel('realtime:settings')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'system_settings' }, (payload) => {
+          setSystemSettings({
+              id: payload.new.id,
+              orgName: payload.new.org_name,
+              appDescription: payload.new.app_description,
+              logoUrl: payload.new.logo_url
+          });
+      })
+      .subscribe();
+
     const docSubscription = supabase
       .channel('realtime:documents')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, (payload) => {
@@ -175,6 +206,7 @@ const App: React.FC = () => {
       .subscribe();
 
     return () => {
+      supabase.removeChannel(settingsSub);
       supabase.removeChannel(docSubscription);
       supabase.removeChannel(logSubscription);
       supabase.removeChannel(userSubscription);
@@ -273,7 +305,7 @@ const App: React.FC = () => {
 
   // Render Logic
   if (!auth.isAuthenticated || currentPage === 'LOGIN') {
-    return <Login onLogin={handleLogin} users={users} />;
+    return <Login onLogin={handleLogin} users={users} systemSettings={systemSettings} />;
   }
 
   return (
@@ -289,6 +321,7 @@ const App: React.FC = () => {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         incomingCount={incomingCount}
+        systemSettings={systemSettings}
       />
 
       {/* Main Content Area */}
@@ -304,8 +337,12 @@ const App: React.FC = () => {
                     <Menu className="w-6 h-6" />
                 </button>
                 <span className="font-bold text-white text-lg flex items-center">
-                    <FileText className="w-5 h-5 mr-2 text-blue-500" />
-                    BJMP8 D.O.C.S
+                    {systemSettings.logoUrl ? (
+                        <img src={systemSettings.logoUrl} className="w-6 h-6 mr-2 object-contain" alt="" />
+                    ) : (
+                        <FileText className="w-5 h-5 mr-2 text-blue-500" />
+                    )}
+                    {systemSettings.orgName}
                 </span>
             </div>
             {incomingCount > 0 && (
@@ -366,6 +403,19 @@ const App: React.FC = () => {
                 setUsers={setUsers} 
                 currentUser={auth.currentUser!} 
               />
+            )}
+
+            {currentPage === 'SYSTEM_SETTINGS' && (
+               auth.currentUser?.role === Role.ADMIN ? (
+                  <SystemSettingsPage 
+                    settings={systemSettings} 
+                    onUpdate={setSystemSettings} 
+                  />
+               ) : (
+                  <div className="text-center py-20">
+                      <h2 className="text-2xl font-bold text-gray-500">Access Denied</h2>
+                  </div>
+               )
             )}
           </div>
         </div>

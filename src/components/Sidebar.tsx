@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Settings, ChevronLeft, ChevronRight, X, Archive } from 'lucide-react';
-import { Page, Role, User } from '../types';
+import { LayoutDashboard, Users, FileText, LogOut, ShieldCheck, Settings, ChevronLeft, ChevronRight, X, Archive, Laptop } from 'lucide-react';
+import { Page, Role, User, SystemSettings } from '../types';
 
 interface SidebarProps {
   currentPage: Page;
@@ -13,6 +13,7 @@ interface SidebarProps {
   onToggleCollapse: () => void; // Toggle desktop collapse
   onCloseMobile: () => void; // Close mobile drawer
   incomingCount?: number; // New prop for notifications
+  systemSettings: SystemSettings;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -24,7 +25,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   onToggleCollapse,
   onCloseMobile,
-  incomingCount = 0
+  incomingCount = 0,
+  systemSettings
 }) => {
   
   const navItemClass = (page: Page) =>
@@ -57,11 +59,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Header */}
         <div className={`p-4 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-gray-800 h-20`}>
           <div className="flex items-center space-x-3 overflow-hidden">
-            <div className="bg-blue-600 p-2 rounded-lg flex-shrink-0">
-              <FileText className="w-6 h-6 text-white" />
+            <div className={`${isCollapsed ? '' : 'bg-blue-600 p-2 rounded-lg'} flex-shrink-0 flex items-center justify-center`}>
+              {systemSettings.logoUrl ? (
+                <img src={systemSettings.logoUrl} className={`${isCollapsed ? 'w-10 h-10' : 'w-6 h-6'} object-contain`} alt="Logo" />
+              ) : (
+                <FileText className="w-6 h-6 text-white" />
+              )}
             </div>
             {!isCollapsed && (
-              <span className="text-xl font-bold text-white tracking-tight whitespace-nowrap">BJMP8 D.O.C.S</span>
+              <span className="text-xl font-bold text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+                {systemSettings.orgName}
+              </span>
             )}
           </div>
           
@@ -124,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           {user.role === Role.ADMIN && (
-            <div className={`pt-4 mt-4 border-t border-gray-800 ${isCollapsed ? 'flex justify-center' : ''}`}>
+            <div className={`pt-4 mt-4 border-t border-gray-800 ${isCollapsed ? 'flex justify-center flex-col items-center space-y-4' : ''}`}>
               {!isCollapsed && (
                 <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Admin</p>
               )}
@@ -135,6 +143,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Users className="w-5 h-5 flex-shrink-0" />
                 {!isCollapsed && <span className="ml-3 font-medium">User Management</span>}
+              </button>
+              
+              <button 
+                onClick={() => { onNavigate('SYSTEM_SETTINGS'); onCloseMobile(); }} 
+                className={navItemClass('SYSTEM_SETTINGS')}
+                title={isCollapsed ? "System Settings" : ""}
+              >
+                <Laptop className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && <span className="ml-3 font-medium">System Settings</span>}
               </button>
             </div>
           )}
