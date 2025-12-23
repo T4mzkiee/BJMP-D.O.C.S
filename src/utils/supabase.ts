@@ -1,9 +1,7 @@
 
-
 import { createClient } from '@supabase/supabase-js';
 import { User, DocumentTrack, DocumentLog, Role, DocStatus, DocCommunication } from '../types';
 
-// Credentials provided by the user
 const supabaseUrl = 'https://vpjzqalmonzqjiprichk.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwanpxYWxtb256cWppcHJpY2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1NjE1MzUsImV4cCI6MjA4MDEzNzUzNX0.YKM4Jjzk6nYi0lPdyxGWEjMXSpxr-myaj3eQDp1BWfU';
 
@@ -12,37 +10,44 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // --- STORAGE HELPER ---
 export const uploadFile = async (file: File, bucket: string = 'avatars'): Promise<string | null> => {
   try {
-    // Create a unique file name: timestamp_sanitized-name
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    // Upload to Supabase
+    // Upload to Supabase - using case-insensitive bucket access
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file);
+      .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+      });
 
     if (uploadError) {
-      console.error('Error uploading file:', uploadError);
+      console.error('Supabase Storage Upload Error:', uploadError);
+      // Fallback: Try with capitalized bucket name if common
+      if (uploadError.message.includes('Bucket not found')) {
+          console.warn(`Bucket '${bucket}' not found. Retrying with '${bucket.toUpperCase()}'...`);
+          const { data: retryData, error: retryError } = await supabase.storage.from(bucket.toUpperCase()).upload(filePath, file);
+          if (!retryError) {
+              const { data } = supabase.storage.from(bucket.toUpperCase()).getPublicUrl(filePath);
+              return data.publicUrl;
+          }
+      }
       return null;
     }
 
-    // Get Public URL
     const { data } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
     return data.publicUrl;
   } catch (error) {
-    console.error('Upload failed:', error);
+    console.error('File upload system error:', error);
     return null;
   }
 };
 
 // --- MAPPERS ---
-// These functions convert between the Application's Data Structure (CamelCase)
-// and the Database's Data Structure (snake_case)
-
 export const mapUserFromDB = (u: any): User => ({
   id: u.id,
   name: u.name,
@@ -53,7 +58,7 @@ export const mapUserFromDB = (u: any): User => ({
   password: u.password,
   salt: u.salt,
   avatarUrl: u.avatar_url,
-  isLoggedIn: u.is_logged_in // Map from DB
+  isLoggedIn: u.is_logged_in
 });
 
 export const mapUserToDB = (u: Partial<User>) => ({
@@ -66,7 +71,7 @@ export const mapUserToDB = (u: Partial<User>) => ({
   password: u.password,
   salt: u.salt,
   avatar_url: u.avatarUrl,
-  is_logged_in: u.isLoggedIn // Map to DB
+  is_logged_in: u.isLoggedIn
 });
 
 export const mapDocFromDB = (d: any, logs: any[]): DocumentTrack => ({

@@ -66,7 +66,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
             if (uploadedUrl) {
                 finalLogoUrl = uploadedUrl;
             } else {
-                throw new Error("Logo upload failed. Please ensure the 'avatars' bucket exists in your Supabase Storage and is set to 'Public'.");
+                throw new Error("Logo upload failed. Please ensure your 'avatars' bucket policies allow 'INSERT' for public/authenticated users.");
             }
         }
 
@@ -81,15 +81,19 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
                 app_description: formData.appDescription,
                 logo_url: finalLogoUrl,
                 updated_at: new Date().toISOString()
-            })
+            }, { onConflict: 'id' })
             .select()
             .single();
 
         if (error) {
-            if (error.message.includes('not find the table')) {
-                throw new Error("Table 'public.system_settings' was not found in your Supabase database. Please create it using the SQL Editor.");
+            console.error("Database Upsert Error:", error);
+            if (error.code === '42P01') {
+                throw new Error("Table 'public.system_settings' does not exist. Please run the SQL setup script.");
             }
-            throw error;
+            if (error.code === '42501') {
+                throw new Error("Permission denied. Row Level Security (RLS) is likely enabled. Run 'ALTER TABLE system_settings DISABLE ROW LEVEL SECURITY;' in SQL editor.");
+            }
+            throw new Error(error.message || "Failed to save settings to database.");
         }
 
         // 3. Update local state via parent
@@ -104,7 +108,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
         alert("System branding synchronized successfully!");
     } catch (err: any) {
         console.error("Sync error:", err);
-        setSaveError(err.message || "Failed to synchronize system settings.");
+        setSaveError(err.message || "An unexpected error occurred during synchronization.");
     } finally {
         setIsSaving(false);
         setIsSyncing(false);
@@ -130,12 +134,9 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
           <div className="bg-red-900/20 border border-red-800/50 p-4 rounded-xl flex items-start space-x-3 animate-shake">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                  <h4 className="text-red-400 font-bold text-sm">Database Setup Required</h4>
+                  <h4 className="text-red-400 font-bold text-sm">Sync Error</h4>
                   <p className="text-red-300/80 text-xs mt-1 leading-relaxed">
                       {saveError}
-                  </p>
-                  <p className="text-red-400 text-[10px] mt-2 font-mono uppercase">
-                      TIP: Go to Supabase SQL Editor and run: CREATE TABLE system_settings (...)
                   </p>
               </div>
               <button onClick={() => setSaveError(null)} className="text-red-500 hover:text-red-400">
