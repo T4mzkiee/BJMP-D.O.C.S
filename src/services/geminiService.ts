@@ -1,17 +1,21 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
+// Fixed to follow coding guidelines: 
+// 1. Initialize GoogleGenAI inside the function right before use to ensure up-to-date API key.
+// 2. Use recommended model 'gemini-3-flash-preview' for basic text tasks (summarization/classification).
+// 3. Access process.env.API_KEY directly for initialization.
 export const analyzeDocument = async (title: string, description: string): Promise<{ summary: string; priority: 'Simple Transaction' | 'Complex Transaction' | 'Highly Technical Transaction' }> => {
-  if (!ai) {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
     console.warn("No API Key found. Returning mock AI response.");
     return {
       summary: "AI Analysis unavailable (Missing API Key). This is a placeholder summary.",
       priority: 'Simple Transaction'
     };
   }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const prompt = `
@@ -23,7 +27,7 @@ export const analyzeDocument = async (title: string, description: string): Promi
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",

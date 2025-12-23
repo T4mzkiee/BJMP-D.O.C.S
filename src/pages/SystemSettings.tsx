@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SystemSettings } from '../types';
-import { Save, Upload, Camera, Building2, Layout, Loader2, FileText, CheckCircle, RefreshCcw } from 'lucide-react';
+import { Save, Upload, Camera, Building2, Layout, Loader2, FileText, CheckCircle, RefreshCcw, AlertTriangle, X } from 'lucide-react';
 import { supabase, uploadFile } from '../utils/supabase';
 
 interface SystemSettingsPageProps {
@@ -12,6 +12,7 @@ interface SystemSettingsPageProps {
 export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings, onUpdate }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     orgName: settings.orgName,
     appDescription: settings.appDescription,
@@ -43,6 +44,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
       }
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
+      setSaveError(null);
     }
   };
 
@@ -54,6 +56,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
 
     setIsSaving(true);
     setIsSyncing(true);
+    setSaveError(null);
     let finalLogoUrl = formData.logoUrl;
 
     try {
@@ -63,12 +66,11 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
             if (uploadedUrl) {
                 finalLogoUrl = uploadedUrl;
             } else {
-                throw new Error("Logo upload failed. Check if 'avatars' bucket exists in Supabase Storage and is public.");
+                throw new Error("Logo upload failed. Please ensure the 'avatars' bucket exists in your Supabase Storage and is set to 'Public'.");
             }
         }
 
         // 2. Sync to Supabase Database (Singleton Record)
-        // We use a fixed ID for the system settings row so there's only ever one.
         const SETTINGS_ID = settings.id === 'default' ? '00000000-0000-0000-0000-000000000001' : settings.id;
 
         const { data, error } = await supabase
@@ -83,7 +85,12 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            if (error.message.includes('not find the table')) {
+                throw new Error("Table 'public.system_settings' was not found in your Supabase database. Please create it using the SQL Editor.");
+            }
+            throw error;
+        }
 
         // 3. Update local state via parent
         onUpdate({
@@ -97,7 +104,7 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
         alert("System branding synchronized successfully!");
     } catch (err: any) {
         console.error("Sync error:", err);
-        alert(err.message || "Failed to synchronize system settings.");
+        setSaveError(err.message || "Failed to synchronize system settings.");
     } finally {
         setIsSaving(false);
         setIsSyncing(false);
@@ -118,6 +125,24 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
             </div>
         )}
       </div>
+
+      {saveError && (
+          <div className="bg-red-900/20 border border-red-800/50 p-4 rounded-xl flex items-start space-x-3 animate-shake">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                  <h4 className="text-red-400 font-bold text-sm">Database Setup Required</h4>
+                  <p className="text-red-300/80 text-xs mt-1 leading-relaxed">
+                      {saveError}
+                  </p>
+                  <p className="text-red-400 text-[10px] mt-2 font-mono uppercase">
+                      TIP: Go to Supabase SQL Editor and run: CREATE TABLE system_settings (...)
+                  </p>
+              </div>
+              <button onClick={() => setSaveError(null)} className="text-red-500 hover:text-red-400">
+                  <X className="w-4 h-4" />
+              </button>
+          </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -196,7 +221,6 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
                         <div className="h-2 w-3/4 bg-gray-800 rounded"></div>
                     </div>
                 </div>
-                <p className="text-[10px] text-gray-500 mt-3 italic text-center">Preview reflects Sidebar and Header appearance.</p>
             </div>
         </div>
 

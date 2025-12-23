@@ -11,7 +11,7 @@ import { SystemSettingsPage } from './pages/SystemSettings';
 import { Sidebar } from './components/Sidebar';
 import { generateSalt, hashPassword, uuid } from './utils/crypto';
 import { supabase, mapUserFromDB, mapDocFromDB, mapUserToDB, mapLogFromDB } from './utils/supabase';
-import { Menu, FileText } from 'lucide-react';
+import { Menu, FileText, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   // State Management
@@ -30,6 +30,7 @@ const App: React.FC = () => {
     logoUrl: null
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // Update Document Title whenever Org Name changes
   useEffect(() => {
@@ -61,58 +62,76 @@ const App: React.FC = () => {
         }
       }
 
-      // 2. Fetch System Settings (Use maybeSingle to avoid errors if empty)
+      // 2. Fetch System Settings
       try {
-          const { data: dbSettings } = await supabase.from('system_settings').select('*').maybeSingle();
-          if (dbSettings) {
+          const { data: dbSettings, error: settingsError } = await supabase.from('system_settings').select('*').maybeSingle();
+          if (settingsError && settingsError.code === 'PGRST116') {
+             // Specific error for "table not found" or "no rows" - handled gracefully by maybeSingle usually
+          } else if (dbSettings) {
             setSystemSettings({
               id: dbSettings.id,
               orgName: dbSettings.org_name,
-              appDescription: dbSettings.app_description,
+              app_description: dbSettings.app_description,
               logoUrl: dbSettings.logo_url
             });
           }
       } catch (err) {
-          console.error("Error fetching system settings:", err);
+          console.warn("Table 'system_settings' might be missing from your database.");
       }
 
       // 3. Fetch Users
-      const { data: dbUsers } = await supabase.from('users').select('*');
-      
-      let appUsers: User[] = [];
+      try {
+          const { data: dbUsers, error: userError } = await supabase.from('users').select('*');
+          
+          if (userError && userError.message.includes('not find the table')) {
+              setDbError("The 'users' table is missing in Supabase. Please run the SQL setup.");
+              setIsLoading(false);
+              return;
+          }
 
-      // Seed Users if empty
-      if (!dbUsers || dbUsers.length === 0) {
-        const seedUsers = await Promise.all(INITIAL_USERS.map(async (u) => {
-          const salt = generateSalt();
-          const hashedPassword = await hashPassword(u.password || 'user123', salt);
-          return { ...u, id: uuid(), salt, password: hashedPassword };
-        }));
+          let appUsers: User[] = [];
+          if (!dbUsers || dbUsers.length === 0) {
+            const seedUsers = await Promise.all(INITIAL_USERS.map(async (u) => {
+              const salt = generateSalt();
+              const hashedPassword = await hashPassword(u.password || 'user123', salt);
+              return { ...u, id: uuid(), salt, password: hashedPassword };
+            }));
 
-        for (const u of seedUsers) {
-          await supabase.from('users').insert(mapUserToDB(u));
-        }
-        appUsers = seedUsers;
-      } else {
-        appUsers = dbUsers.map(mapUserFromDB);
+            for (const u of seedUsers) {
+              await supabase.from('users').insert(mapUserToDB(u));
+            }
+            appUsers = seedUsers;
+          } else {
+            appUsers = dbUsers.map(mapUserFromDB);
+          }
+          setUsers(appUsers);
+      } catch (err) {
+          console.error("Critical error loading users:", err);
       }
-      setUsers(appUsers);
 
       // 4. Fetch Departments
-      const { data: dbDepts } = await supabase.from('departments').select('*').order('name');
-      if (dbDepts) {
-        setDepartments(dbDepts);
+      try {
+          const { data: dbDepts } = await supabase.from('departments').select('*').order('name');
+          if (dbDepts) {
+            setDepartments(dbDepts);
+          }
+      } catch (err) {
+          console.warn("Table 'departments' might be missing.");
       }
 
       // 5. Fetch Documents & Logs
-      const { data: dbDocs } = await supabase.from('documents').select(`*, logs:document_logs(*)`);
+      try {
+          const { data: dbDocs } = await supabase.from('documents').select(`*, logs:document_logs(*)`);
 
-      if (dbDocs) {
-        const sortedDocs = dbDocs.sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        const appDocs = sortedDocs.map((d: any) => mapDocFromDB(d, d.logs || []));
-        setDocuments(appDocs);
+          if (dbDocs) {
+            const sortedDocs = dbDocs.sort((a: any, b: any) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            const appDocs = sortedDocs.map((d: any) => mapDocFromDB(d, d.logs || []));
+            setDocuments(appDocs);
+          }
+      } catch (err) {
+          console.warn("Table 'documents' or 'document_logs' might be missing.");
       }
 
       setIsLoading(false);
@@ -121,8 +140,6 @@ const App: React.FC = () => {
     loadData();
 
     // --- REALTIME SUBSCRIPTIONS ---
-    
-    // Listen for ALL changes (Insert/Update) to settings
     const settingsSub = supabase
       .channel('realtime:settings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, (payload) => {
@@ -130,7 +147,7 @@ const App: React.FC = () => {
               setSystemSettings({
                   id: payload.new.id,
                   orgName: payload.new.org_name,
-                  appDescription: payload.new.app_description,
+                  app_description: payload.new.app_description,
                   logoUrl: payload.new.logo_url
               });
           }
@@ -230,7 +247,9 @@ const App: React.FC = () => {
     setAuth({ isAuthenticated: true, currentUser: userWithAuth });
     setCurrentPage('DASHBOARD');
     localStorage.setItem('bjmp_docs_user', JSON.stringify(userWithAuth));
-    await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
+    try {
+        await supabase.from('users').update({ is_logged_in: true }).eq('id', user.id);
+    } catch (e) {}
   };
 
   const handleLogout = (skipDbUpdate: boolean = false) => {
@@ -273,6 +292,29 @@ const App: React.FC = () => {
     );
   }
 
+  if (dbError) {
+      return (
+          <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
+              <div className="bg-gray-800 border border-red-800/50 p-8 rounded-2xl max-w-md w-full text-center">
+                  <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <AlertTriangle className="w-8 h-8 text-red-500" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Database Connection Error</h2>
+                  <p className="text-gray-400 text-sm mb-6">{dbError}</p>
+                  <div className="bg-gray-900 p-4 rounded-lg text-left font-mono text-xs text-gray-500 mb-6 overflow-auto">
+                      Please ensure you have run the required SQL schema in your Supabase SQL Editor.
+                  </div>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors"
+                  >
+                      Retry Connection
+                  </button>
+              </div>
+          </div>
+      );
+  }
+
   // Render Logic
   if (!auth.isAuthenticated || currentPage === 'LOGIN') {
     return <Login onLogin={handleLogin} users={users} systemSettings={systemSettings} />;
@@ -280,7 +322,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
-      {/* Sidebar Navigation */}
       <Sidebar 
         currentPage={currentPage} 
         user={auth.currentUser!} 
@@ -294,9 +335,7 @@ const App: React.FC = () => {
         systemSettings={systemSettings}
       />
 
-      {/* Main Content Area */}
       <main className={`flex-1 transition-all duration-300 ease-in-out h-screen overflow-hidden flex flex-col ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
-        {/* Mobile Header */}
         <div className="md:hidden bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
             <div className="flex items-center space-x-3">
                 <button onClick={() => setIsMobileSidebarOpen(true)} className="text-gray-400 hover:text-white">
