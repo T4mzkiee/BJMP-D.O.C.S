@@ -179,11 +179,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users, systemSettings }) 
           )}
 
           <div className="mb-8">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4 border border-blue-500 overflow-hidden">
+            <div className="w-24 h-24 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-500 shadow-lg overflow-hidden">
                {systemSettings.logoUrl ? (
-                   <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                   <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
                ) : (
-                   <FileText className="text-white w-6 h-6" />
+                   <FileText className="text-white w-12 h-12" />
                )}
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">{systemSettings.orgName}</h1>
@@ -269,7 +269,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users, systemSettings }) 
           <div className="relative z-10 h-full flex flex-col justify-between">
             <div>
               <h2 className="text-3xl font-bold mb-4 drop-shadow-md">Professional Document Tracking</h2>
-              <p className="text-blue-100 leading-relaxed drop-shadow-sm font-medium">
+              <p className="text-blue-100 leading-relaxed drop-shadow-sm font-medium text-justify">
                 {systemSettings.appDescription}
               </p>
             </div>

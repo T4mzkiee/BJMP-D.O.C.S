@@ -57,17 +57,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className={sidebarClasses}>
         {/* Header */}
-        <div className={`p-4 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-gray-800 h-20`}>
+        <div className={`p-4 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-gray-800 h-24`}>
           <div className="flex items-center space-x-3 overflow-hidden">
-            <div className={`${isCollapsed ? '' : 'bg-blue-600 p-2 rounded-lg'} flex-shrink-0 flex items-center justify-center`}>
+            <div className={`${isCollapsed ? '' : 'bg-blue-600 p-2 rounded-xl'} flex-shrink-0 flex items-center justify-center`}>
               {systemSettings.logoUrl ? (
-                <img src={systemSettings.logoUrl} className={`${isCollapsed ? 'w-10 h-10' : 'w-6 h-6'} object-contain`} alt="Logo" />
+                <img src={systemSettings.logoUrl} className={`${isCollapsed ? 'w-14 h-14' : 'w-12 h-12'} object-contain`} alt="Logo" />
               ) : (
-                <FileText className="w-6 h-6 text-white" />
+                <FileText className={`${isCollapsed ? 'w-10 h-10' : 'w-8 h-8'} text-white`} />
               )}
             </div>
             {!isCollapsed && (
-              <span className="text-xl font-bold text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+              <span className="text-xl font-bold text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
                 {systemSettings.orgName}
               </span>
             )}
