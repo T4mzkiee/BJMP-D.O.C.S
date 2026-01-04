@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SystemSettings } from '../types';
-import { Save, Upload, Camera, Building2, Layout, Loader2, FileText, CheckCircle, RefreshCcw, AlertTriangle, X, Terminal, Copy } from 'lucide-react';
+import { Save, Upload, Camera, Building2, Layout, Loader2, FileText, CheckCircle, RefreshCcw, AlertTriangle, X, Terminal, Copy, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { supabase, uploadFile } from '../utils/supabase';
 
 interface SystemSettingsPageProps {
@@ -23,7 +23,6 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
     logoRightUrl: settings.logoRightUrl
   });
 
-  // Sync internal state if props change (e.g. from a background realtime update)
   useEffect(() => {
     setFormData({
       orgName: settings.orgName,
@@ -37,7 +36,6 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
     setPreviewRightUrl(settings.logoRightUrl || null);
   }, [settings]);
 
-  // Logo Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileLeftInputRef = useRef<HTMLInputElement>(null);
   const fileRightInputRef = useRef<HTMLInputElement>(null);
@@ -50,10 +48,29 @@ export const SystemSettingsPage: React.FC<SystemSettingsPageProps> = ({ settings
   const [previewLeftUrl, setPreviewLeftUrl] = useState<string | null>(settings.logoLeftUrl || null);
   const [previewRightUrl, setPreviewRightUrl] = useState<string | null>(settings.logoRightUrl || null);
 
-  const sqlFix = `-- Run this in Supabase SQL Editor:
+  const sqlFix = `-- 1. Add missing columns
 ALTER TABLE system_settings 
 ADD COLUMN IF NOT EXISTS logo_left_url TEXT,
-ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
+ADD COLUMN IF NOT EXISTS logo_right_url TEXT;
+
+-- 2. Enable Row Level Security (RLS)
+-- This satisfies the Supabase Security Advisor
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+
+-- 3. Create Security Policies
+-- Allow anyone (even non-logged in users) to see branding
+DROP POLICY IF EXISTS "Enable read access for all users" ON system_settings;
+CREATE POLICY "Enable read access for all users" 
+ON system_settings FOR SELECT 
+USING (true);
+
+-- Allow authenticated users to update settings
+DROP POLICY IF EXISTS "Enable update for authenticated users" ON system_settings;
+CREATE POLICY "Enable update for authenticated users" 
+ON system_settings FOR ALL 
+TO anon, authenticated
+USING (true)
+WITH CHECK (true);`;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'left' | 'right') => {
     if (e.target.files && e.target.files[0]) {
@@ -120,18 +137,17 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
                 logo_right_url: finalLogoRightUrl,
                 updated_at: new Date().toISOString()
             }, { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
+              onConflict: 'id'
             })
             .select()
             .single();
 
         if (error) {
-            if (error.message.includes('column') || error.message.includes('schema cache') || error.code === 'PGRST204' || error.code === '42P01') {
+            if (error.message.includes('column') || error.code === '42P01' || error.message.includes('row-level security')) {
                 setShowSqlFix(true);
-                throw new Error("The database table 'system_settings' is missing columns. Please run the SQL fix.");
+                throw new Error("Database configuration error. Please run the SQL fix script in your Supabase Dashboard.");
             }
-            throw new Error(error.message || "Failed to synchronize with database.");
+            throw new Error(error.message);
         }
 
         onUpdate({
@@ -146,18 +162,13 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
         setSelectedFile(null);
         setSelectedLeftFile(null);
         setSelectedRightFile(null);
-        alert("System branding synchronized successfully!");
+        alert("Branding updated successfully!");
     } catch (err: any) {
-        setSaveError(err.message || "An unexpected error occurred.");
+        setSaveError(err.message || "An error occurred.");
     } finally {
         setIsSaving(false);
         setIsSyncing(false);
     }
-  };
-
-  const copySql = () => {
-    navigator.clipboard.writeText(sqlFix);
-    alert("SQL fix copied to clipboard!");
   };
 
   return (
@@ -165,7 +176,7 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-white">System Settings</h1>
-          <p className="text-sm text-gray-400">Customize organization branding and application metadata.</p>
+          <p className="text-sm text-gray-400">Customize organization branding and satisfy security requirements.</p>
         </div>
         {isSyncing && (
             <div className="flex items-center text-blue-400 text-sm font-medium animate-pulse">
@@ -175,29 +186,52 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
         )}
       </div>
 
+      <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+              <ShieldCheck className="w-5 h-5 text-blue-400" />
+              <div>
+                  <h4 className="text-sm font-bold text-white">Security Hardening</h4>
+                  <p className="text-xs text-gray-400">Ensure Row Level Security (RLS) is enabled for all tables in Supabase.</p>
+              </div>
+          </div>
+          <button 
+            onClick={() => setShowSqlFix(!showSqlFix)}
+            className="text-xs font-bold text-blue-400 hover:text-blue-300 underline"
+          >
+              {showSqlFix ? 'Hide SQL Script' : 'View Security SQL'}
+          </button>
+      </div>
+
+      {showSqlFix && (
+          <div className="bg-gray-800 border border-blue-900/50 rounded-xl overflow-hidden animate-fade-in">
+              <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-900/30">
+                  <span className="text-xs font-mono text-blue-400 uppercase flex items-center">
+                      <Terminal className="w-4 h-4 mr-2" /> Supabase Security & Schema Fix
+                  </span>
+                  <button 
+                    onClick={() => { navigator.clipboard.writeText(sqlFix); alert("SQL copied!"); }}
+                    className="flex items-center space-x-1.5 text-xs text-blue-400 hover:text-blue-300"
+                  >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Script</span>
+                  </button>
+              </div>
+              <pre className="p-4 text-[11px] font-mono text-gray-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                  {sqlFix}
+              </pre>
+              <div className="px-4 py-3 bg-gray-900/50 text-[10px] text-gray-500 italic">
+                  Run this script in your Supabase SQL Editor to enable RLS and fix the Security Advisor warnings.
+              </div>
+          </div>
+      )}
+
       {saveError && (
-          <div className="bg-red-900/20 border border-red-800/50 p-5 rounded-xl">
+          <div className="bg-red-900/20 border border-red-800/50 p-5 rounded-xl animate-shake">
               <div className="flex items-start space-x-3">
                 <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                    <h4 className="text-red-400 font-bold text-sm">Synchronization Failed</h4>
+                    <h4 className="text-red-400 font-bold text-sm">Action Required</h4>
                     <p className="text-red-300/80 text-xs mt-1 leading-relaxed">{saveError}</p>
-                    {showSqlFix && (
-                        <div className="mt-4 space-y-3">
-                            <div className="bg-black/40 rounded-lg border border-red-900/50 overflow-hidden">
-                                <div className="flex items-center justify-between px-3 py-2 bg-red-900/20 border-b border-red-900/30">
-                                    <span className="text-[10px] font-mono text-red-400 uppercase flex items-center">
-                                        <Terminal className="w-3 h-3 mr-1.5" />
-                                        SQL Fix Script
-                                    </span>
-                                    <button onClick={copySql} className="text-red-400 hover:text-red-300">
-                                        <Copy className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                                <pre className="p-3 text-[11px] font-mono text-gray-300 overflow-x-auto">{sqlFix}</pre>
-                            </div>
-                        </div>
-                    )}
                 </div>
                 <button onClick={() => setSaveError(null)} className="text-red-500 hover:text-red-400">
                     <X className="w-4 h-4" />
@@ -210,7 +244,6 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
         <div className="lg:col-span-1 space-y-6">
             <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6 flex flex-col items-center">
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6 w-full">Logos Management</h3>
-                
                 <div className="w-full space-y-2 mb-8">
                   <label className="text-xs font-medium text-gray-500 uppercase">Center Logo</label>
                   <div className="relative group cursor-pointer" onClick={() => !isSaving && fileInputRef.current?.click()}>
@@ -221,7 +254,6 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
                   </div>
                   <input type="file" ref={fileInputRef} onChange={e => handleFileChange(e, 'main')} className="hidden" accept="image/*" disabled={isSaving} />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4 w-full">
                     <div className="space-y-2">
                         <label className="text-xs font-medium text-gray-500 uppercase">Left Logo</label>
@@ -240,27 +272,6 @@ ADD COLUMN IF NOT EXISTS logo_right_url TEXT;`;
                             </div>
                         </div>
                         <input type="file" ref={fileRightInputRef} onChange={e => handleFileChange(e, 'right')} className="hidden" accept="image/*" disabled={isSaving} />
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-blue-900/10 border border-blue-900/30 rounded-xl p-6">
-                <h4 className="text-blue-400 font-bold text-sm mb-4 flex items-center"><Layout className="w-4 h-4 mr-2" />Login Preview</h4>
-                <div className="bg-gray-900 rounded-lg p-6 border border-gray-700 shadow-inner">
-                    <div className="flex items-center justify-between mb-4 gap-2">
-                         <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
-                             {previewLeftUrl ? <img src={previewLeftUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-10 h-10 bg-gray-800 rounded" />}
-                         </div>
-                         <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
-                             {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="" /> : <div className="bg-blue-600 p-2 rounded-lg"><FileText className="w-6 h-6 text-white" /></div>}
-                         </div>
-                         <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
-                             {previewRightUrl ? <img src={previewRightUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-10 h-10 bg-gray-800 rounded" />}
-                         </div>
-                    </div>
-                    <div className="text-center space-y-1">
-                        <div className="h-3 w-3/4 bg-gray-700 rounded mx-auto"></div>
-                        <div className="h-2 w-1/2 bg-gray-800 rounded mx-auto"></div>
                     </div>
                 </div>
             </div>
